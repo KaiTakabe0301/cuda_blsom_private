@@ -114,14 +114,10 @@ void BLSOM::SetTrainingData(const float* train, const int train_num, const int e
 
 	this->h_trains = thrust::host_vector<float>(epoc_num*train_num*this->vec_dim);
 	this->d_trains = thrust::device_vector<float>(epoc_num*train_num*this->vec_dim);
-	//this->h_trains = (float*)malloc(sizeof(float)*epoc_num*train_num*this->vec_dim);
-	//cudaMalloc(&(this->d_trains), sizeof(float)*epoc_num*train_num*this->vec_dim);
 	
 	memcpy(thrust::raw_pointer_cast(this->h_trains.data()), train, epoc_num*train_num*this->vec_dim);
 	cudaMemcpy(thrust::raw_pointer_cast(this->d_trains.data()), thrust::raw_pointer_cast(this->h_trains.data()), epoc_num*train_num*this->vec_dim, cudaMemcpyHostToDevice);
 
-	//memcpy(this->h_trains, train, sizeof(float)*epoc_num*train_num*this->vec_dim);
-	//cudaMemcpy(d_trains, h_trains, sizeof(float)*epoc_num*train_num*this->vec_dim, cudaMemcpyHostToDevice);
 }
 
 void BLSOM::check_mapWeight() {
