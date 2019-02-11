@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClInclude Include="SelectGPU.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="BLSOM.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="cuda_smart_pointer.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="BLSOM.cu">
+      <Filter>Source</Filter>
+    </CudaCompile>
+    <CudaCompile Include="main.cu">
+      <Filter>Source</Filter>
+    </CudaCompile>
+    <CudaCompile Include="SelectGPU.cu">
+      <Filter>Source</Filter>
+    </CudaCompile>
+    <CudaCompile Include="cuda_smart_pointer.cu">
+      <Filter>Source</Filter>
+    </CudaCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Header">
+      <UniqueIdentifier>{7474ca0b-c7d1-49a4-9221-bce3afe87882}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source">
+      <UniqueIdentifier>{2f96cda6-1240-4498-a7d8-10f1134108f9}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
