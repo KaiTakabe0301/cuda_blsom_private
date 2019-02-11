@@ -126,14 +126,15 @@ void BLSOM::check_mapWeight() {
 
 	for (int idy = 0; idy < map_height; idy++) {
 		for (int idx = 0; idx < map_width; idx++) {
-			printf("%d %d \n",idy, idx);
+			//printf("%d %d \n",idy, idx);
+			printf("%d", map_width*idy + idx);
 			//printf("%d", map_width*vec_dim*idy + vec_dim*idx);
-			
+			/*
 			for (int idz = 0; idz < vec_dim; idz++) {
 				printf("%d :", map_width*vec_dim*idy + vec_dim*idx + idz);
 				printf("%f ", this->h_mapWeight[map_width*vec_dim*idy + vec_dim*idx + idz]);
 				printf("\n");
-			}
+			}*/
 			printf("\n");
 		}
 	}
@@ -141,9 +142,9 @@ void BLSOM::check_mapWeight() {
 
 __global__ void InitMapWeightFromGPU(float* mapWeight,const int map_width, const int vec_dim) {
 	int ix = blockIdx.x*blockDim.x;
-	int iy = blockIdx.y*blockDim.y;// +threadIdx.x;
+	int iy = blockIdx.y*blockDim.y;
 	int idx = map_width*vec_dim*iy + vec_dim*ix + threadIdx.z;
-	mapWeight[idx] = 1;
+	mapWeight[idx] = 0;
 }
 
 void BLSOM::InitMapWeight() {
@@ -153,24 +154,29 @@ void BLSOM::InitMapWeight() {
 	InitMapWeightFromGPU <<<grid, block >>> (thrust::raw_pointer_cast(this->d_mapWeight.data()),this->map_width,this->vec_dim);
 }
 
-__global__ void InitNodeFromGPU(float* node) {
-	int idx = blockIdx.x*blockDim.x + threadIdx.x;
+__global__ void InitNodeFromGPU(float* node,const int map_width) {
+	int ix = blockIdx.x*blockDim.x;
+	int iy = blockIdx.y*blockDim.y;
+	int idx = map_width*iy + ix;
 	node[idx] = 0;
 }
 
-__global__ void BMUFromGPU(float* input_xk, float* node, float* mapWeight,const int vec_dim) {
-	int idx = blockIdx.x*blockDim.x + threadIdx.x;
-	for (int i; i < vec_dim; i++) {
-		node[idx] += (mapWeight[idx + i]);
-	}
+__global__ void BMUFromGPU(float* input_xk, float* node, float* mapWeight, const int map_width, const int vec_dim) {
+	int ix = blockIdx.x*blockDim.x;
+	int iy = blockIdx.y*blockDim.y;
+	int node_idx = map_width*iy + ix;
+	int map_idx = map_width*vec_dim*iy + vec_dim*ix + threadIdx.z;
+	
+	node[node_idx] += (mapWeight[map_idx]-input_xk[threadIdx.z])*(mapWeight[map_idx] - input_xk[threadIdx.z]);
+	
 }
 
 void BLSOM::BMU(float* input_xk) {
-	dim3 width_block(this->map_width);
-	dim3 height_grid(this->map_height);
+	dim3 block(1, 1, this->vec_dim);
+	dim3 grid(this->map_height, this->map_width);
 
-	InitNodeFromGPU <<< height_grid, width_block >>> (thrust::raw_pointer_cast(this->d_node.data()));
-	BMUFromGPU <<< height_grid,width_block >>>(input_xk, thrust::raw_pointer_cast(this->d_node.data()), thrust::raw_pointer_cast(this->d_mapWeight.data()),this->vec_dim);
+	InitNodeFromGPU <<< grid, 1 >>> (thrust::raw_pointer_cast(this->d_node.data()),this->map_width);
+	BMUFromGPU <<< grid,block >>>(input_xk, thrust::raw_pointer_cast(this->d_node.data()), thrust::raw_pointer_cast(this->d_mapWeight.data()), this->map_width, this->vec_dim);
 
 }
 

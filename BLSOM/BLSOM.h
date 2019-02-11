@@ -83,6 +83,8 @@ public:
 	void SetTrainingData(const float* train,const int train_num, const int epoc_num);
 	/*--- ŒvŽZ‚É•K—v‚È•Ï”‚ðŠi”[‚·‚éŠÖ”‚±‚±‚Ü‚Å ---*/
 
+	void Test();
+
 	/*--- getter ---*/
 	int MapHeight() {
 		return this->map_height;
