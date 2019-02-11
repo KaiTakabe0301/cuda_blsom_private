@@ -13,8 +13,6 @@
 class BLSOM {
 private:
 
-	//auto deleter = [&](float* ptr) { cudaFree(ptr); };
-
 	/*--- マップの基本情報 ---*/
 	int epoc_num;	//エポック数
 	int train_num;	//学習データの数
@@ -33,6 +31,7 @@ private:
 	bool flg_gpu;								//GPUを使用するか否か
 	int   d_Acs;							//使用するGPU
 	thrust::device_vector<float> d_mapWeight;						//J×I行列のマップの領域確保に利用
+	thrust::device_vector<float> d_weightS;							//代表ベクトルWij 
 	thrust::device_vector<float> d_node;							//node
 	thrust::device_vector<int> d_bmuPos;							//d_bmuPos[0]=x,d_bmuPos[1]=y
 	thrust::device_vector<float> d_train;							//学習データ
@@ -45,6 +44,7 @@ private:
 
 	/*--- CPU用計算変数ここから ---*/
 	thrust::host_vector<float> h_mapWeight;						//J×I行列のマップの領域確保に利用
+	thrust::host_vector<float> h_weightS;						//代表ベクトルWij 
 	thrust::host_vector<float> h_node;							//node
 	thrust::host_vector<int> h_bmuPos;							//d_bmuPos[0]=x,d_bmuPos[1]=y
 	thrust::host_vector<float> h_train;							//学習データ
@@ -55,13 +55,14 @@ private:
 	/*--- CPU用計算変数ここまで ---*/
 	
 	float dist();	//ユークリッド距離の計算
+	void BMU(float* input_xk);
 
 	/*--- GPU利用関数 ---*/
 	void  InitMapWeight();	//初期マップの作成
 	void  InitRandWeightFromGPU();//ランダムに初期化を行う
 	void  searchBMUFromGPU(int epoc_num,int data_size);		//epoc_num * data_size + vec_dimで座標を決定
 
-	void cudaMemFree();
+
 
 public:
 	BLSOM(int vec_dim, int map_width);

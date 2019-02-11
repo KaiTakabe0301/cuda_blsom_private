@@ -73,6 +73,7 @@ void BLSOM::Init(const float sdev1, const float sdev2, const float* rot1, const 
 	if (flg_gpu) {
 		
 		this->d_mapWeight = thrust::device_vector<float>(map_width*map_height*vec_dim);
+		this->d_weightS = thrust::device_vector<float>(map_width*map_height* (vec_dim + 1));
 		this->d_node = thrust::device_vector<float>(map_width*map_height);
 		this->d_rot1 = thrust::device_vector<float>(vec_dim);
 		this->d_rot2 = thrust::device_vector<float>(vec_dim);
@@ -91,6 +92,7 @@ void BLSOM::Init(const float sdev1, const float sdev2, const float* rot1, const 
 	}
 
 	this->h_mapWeight = thrust::host_vector<float>(this->map_width*this->map_height*this->vec_dim);
+	this->h_weightS = thrust::host_vector<float>(this->map_width*this->map_height* (this->vec_dim + 1));
 	this->h_node = thrust::host_vector<float>(this->map_width*this->map_height);
 	this->h_rot1 = thrust::host_vector<float>(this->vec_dim);
 	this->h_rot2 = thrust::host_vector<float>(this->vec_dim);
@@ -117,31 +119,80 @@ void BLSOM::SetTrainingData(const float* train, const int train_num, const int e
 	
 	memcpy(thrust::raw_pointer_cast(this->h_trains.data()), train, epoc_num*train_num*this->vec_dim);
 	cudaMemcpy(thrust::raw_pointer_cast(this->d_trains.data()), thrust::raw_pointer_cast(this->h_trains.data()), epoc_num*train_num*this->vec_dim, cudaMemcpyHostToDevice);
-
 }
 
 void BLSOM::check_mapWeight() {
 	cudaMemcpy(thrust::raw_pointer_cast(this->h_mapWeight.data()), thrust::raw_pointer_cast(this->d_mapWeight.data()), sizeof(float)*this->map_width*this->map_height*this->vec_dim, cudaMemcpyDeviceToHost);
 
-	for (int idx = 0; idx < map_width; idx++) {
-		for (int idy = 0; idy < map_height; idy++) {
-			printf("%d %d ",idx, idy);
+	for (int idy = 0; idy < map_height; idy++) {
+		for (int idx = 0; idx < map_width; idx++) {
+			printf("%d %d \n",idy, idx);
+			//printf("%d", map_width*vec_dim*idy + vec_dim*idx);
+			
 			for (int idz = 0; idz < vec_dim; idz++) {
-				printf("%f ", this->h_mapWeight[idx*idy + idz]);
+				printf("%d :", map_width*vec_dim*idy + vec_dim*idx + idz);
+				printf("%f ", this->h_mapWeight[map_width*vec_dim*idy + vec_dim*idx + idz]);
+				printf("\n");
 			}
 			printf("\n");
 		}
 	}
 }
 
-__global__ void InitMapWeightFromGPU(float* mapWeight) {
-	int idx =  blockIdx.x*blockDim.x + threadIdx.x;
+__global__ void InitMapWeightFromGPU(float* mapWeight,const int map_width, const int vec_dim) {
+	int ix = blockIdx.x*blockDim.x;
+	int iy = blockIdx.y*blockDim.y;// +threadIdx.x;
+	int idx = map_width*vec_dim*iy + vec_dim*ix + threadIdx.z;
 	mapWeight[idx] = 1;
 }
 
 void BLSOM::InitMapWeight() {
-	dim3 block(this->vec_dim);
-	dim3 grid(this->map_height*this->map_width);
+	dim3 block(1,1,this->vec_dim);
+	dim3 grid(this->map_width, this->map_height);
 
-	InitMapWeightFromGPU <<<grid, block >>> (thrust::raw_pointer_cast(this->d_mapWeight.data()));
+	InitMapWeightFromGPU <<<grid, block >>> (thrust::raw_pointer_cast(this->d_mapWeight.data()),this->map_width,this->vec_dim);
+}
+
+__global__ void InitNodeFromGPU(float* node) {
+	int idx = blockIdx.x*blockDim.x + threadIdx.x;
+	node[idx] = 0;
+}
+
+__global__ void BMUFromGPU(float* input_xk, float* node, float* mapWeight,const int vec_dim) {
+	int idx = blockIdx.x*blockDim.x + threadIdx.x;
+	for (int i; i < vec_dim; i++) {
+		node[idx] += (mapWeight[idx + i]);
+	}
+}
+
+void BLSOM::BMU(float* input_xk) {
+	dim3 width_block(this->map_width);
+	dim3 height_grid(this->map_height);
+
+	InitNodeFromGPU <<< height_grid, width_block >>> (thrust::raw_pointer_cast(this->d_node.data()));
+	BMUFromGPU <<< height_grid,width_block >>>(input_xk, thrust::raw_pointer_cast(this->d_node.data()), thrust::raw_pointer_cast(this->d_mapWeight.data()),this->vec_dim);
+
+}
+
+__global__ void InitWeighSFromGPU(float* weightS) {
+	int idx = blockIdx.x*blockDim.x + threadIdx.x;
+	weightS[idx] = 0;
+}
+
+void BLSOM::Learning(int Lnum) {
+	std::cout << "Learning Start" << std::endl;
+
+	dim3 weightS_block(this->vec_dim + 1);
+	dim3 weightS_grid(this->map_height*this->map_width);
+
+	for (int l = 0; l < Lnum; l++) {
+		for (int i = 0; i < this->epoc_num; i++) {
+			InitWeighSFromGPU <<< weightS_grid, weightS_block >>> (thrust::raw_pointer_cast(this->d_weightS.data()));
+
+			for (int j = 0; j < this->train_num; j++) {
+				this->BMU(thrust::raw_pointer_cast(&(this->d_trains[i * (this->train_num) + j*(this->vec_dim)])));
+			}
+
+		}
+	}
 }
