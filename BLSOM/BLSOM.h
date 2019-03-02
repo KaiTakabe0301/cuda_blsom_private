@@ -62,6 +62,7 @@ private:
 	float dist();	//ユークリッド距離の計算
 	void BMU(float* input_xk);
 	void CalcWeightS(float* input_xk, int Lnum);
+	void UpdateMapWeight(int Lnum);
 
 	/*--- GPU利用関数 ---*/
 	void  InitMapWeight();	//初期マップの作成
