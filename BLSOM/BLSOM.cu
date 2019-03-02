@@ -4,6 +4,15 @@
 
 using namespace std;
 
+#ifndef DIST
+#define DIST(bx,by,x,y) ((bx-x)*(bx-x)+(by-y)*(by-y))
+#endif // !DIST
+
+
+#ifndef MAX
+#define MAX( a, b ) ( ((a) > (b)) ? (a) : (b) )
+#endif
+
 #define CHECK(call)														\
 {																		\
 	const cudaError_t error = call;										\
@@ -184,17 +193,25 @@ void BLSOM::setBMUPosition() {
 	this->d_bmuPos = this->h_bmuPos;
 }
 
-__global__ void CalcWeightSFromGPU(float* input_xk, int* bmuPos, float* weightS, const int map_width, const int vec_dim, const double tBeta, const int lnum) {
+__global__ void CalcWeightSFromGPU(float* input_xk, int* bmuPos, float* weightS,
+								   const int map_width, const int vec_dim,
+								   const double iBeta, const double tBeta, const int lnum) {
+
 	int ix = blockIdx.x*blockDim.x;
 	int iy = blockIdx.y*blockDim.y;
-	int node_idx = map_width*iy + ix;
-	int map_idx = map_width*vec_dim*iy + vec_dim*ix + threadIdx.z;
+	int weiS_idx = map_width*vec_dim*iy + vec_dim*ix + threadIdx.z;
+	int weiS_eIdx = map_width*vec_dim*iy + vec_dim*ix + vec_dim;	//weightS[ix][iy][vec_dim]
 
-	float dist = (bmuPos[0] - ix)*(bmuPos[0] - ix) + (bmuPos[1] - iy)*(bmuPos[1] - ix);
+
+	float dist = DIST(bmuPos[0], bmuPos[1], ix, iy);
+	float Beta = MAX(0, (iBeta*(1 - (lnum / tBeta))));
+
+	if ((Beta*Beta - dist) >= 0) {
+		weightS[weiS_idx] += input_xk[threadIdx.z];
+		weightS[weiS_eIdx]++;
+	}
 
 }
-
-
 
 void BLSOM::BMU(float* input_xk) {
 	dim3 block(1, 1, this->vec_dim);
@@ -204,6 +221,21 @@ void BLSOM::BMU(float* input_xk) {
 	BMUFromGPU <<< grid,block >>>(input_xk, thrust::raw_pointer_cast(this->d_node.data()), thrust::raw_pointer_cast(this->d_mapWeight.data()), this->map_width, this->vec_dim);
 	setBMUPosition();
 	
+}
+
+void BLSOM::CalcWeightS(float* input_xk, int Lnum) {
+	dim3 block(1, 1, this->vec_dim);
+	dim3 grid(this->map_height, this->map_width);
+
+	CalcWeightSFromGPU <<<grid, block >>> (input_xk,
+										   thrust::raw_pointer_cast(this->d_bmuPos.data()),
+										   thrust::raw_pointer_cast(this->d_weightS.data()),
+										   this->map_width,
+										   this->vec_dim,
+										   this->iBeta,
+										   this->t_beta,
+										   Lnum);
+											
 }
 
 __global__ void InitWeighSFromGPU(float* weightS) {
@@ -222,7 +254,8 @@ void BLSOM::Learning(int Lnum) {
 			InitWeighSFromGPU <<< weightS_grid, weightS_block >>> (thrust::raw_pointer_cast(this->d_weightS.data()));
 
 			for (int j = 0; j < this->train_num; j++) {
-				this->BMU(thrust::raw_pointer_cast(&(this->d_trains[i * (this->train_num) + j*(this->vec_dim)])));
+				this->BMU(thrust::raw_pointer_cast(&(this->d_trains[i * (this->train_num) * (this->vec_dim) + j*(this->vec_dim)]))); //“Y‚¦Žš‚ðC³
+				this->CalcWeightS(thrust::raw_pointer_cast(&(this->d_trains[i * (this->train_num) * (this->vec_dim) + j*(this->vec_dim)])), l);
 			}
 
 		}
