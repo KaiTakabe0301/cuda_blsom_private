@@ -171,13 +171,39 @@ __global__ void BMUFromGPU(float* input_xk, float* node, float* mapWeight, const
 	
 }
 
+int BLSOM::getBMUIndex() {
+	thrust::device_vector<float>::iterator bgn_itr = d_node.begin();
+	thrust::device_vector<float>::iterator bmu_itr = thrust::min_element(thrust::device, d_node.begin(), d_node.end());
+	return thrust::distance(bgn_itr, bmu_itr);
+}
+
+void BLSOM::setBMUPosition() {
+	int bmu_index = getBMUIndex();
+	this->h_bmuPos[0] = bmu_index % (this->map_width);	//xÀ•WŒvŽZ
+	this->h_bmuPos[1] = bmu_index / (this->map_width);	//yÀ•WŒvŽZ
+	this->d_bmuPos = this->h_bmuPos;
+}
+
+__global__ void CalcWeightSFromGPU(float* input_xk, int* bmuPos, float* weightS, const int map_width, const int vec_dim, const double tBeta, const int lnum) {
+	int ix = blockIdx.x*blockDim.x;
+	int iy = blockIdx.y*blockDim.y;
+	int node_idx = map_width*iy + ix;
+	int map_idx = map_width*vec_dim*iy + vec_dim*ix + threadIdx.z;
+
+	float dist = (bmuPos[0] - ix)*(bmuPos[0] - ix) + (bmuPos[1] - iy)*(bmuPos[1] - ix);
+
+}
+
+
+
 void BLSOM::BMU(float* input_xk) {
 	dim3 block(1, 1, this->vec_dim);
 	dim3 grid(this->map_height, this->map_width);
 
 	InitNodeFromGPU <<< grid, 1 >>> (thrust::raw_pointer_cast(this->d_node.data()),this->map_width);
 	BMUFromGPU <<< grid,block >>>(input_xk, thrust::raw_pointer_cast(this->d_node.data()), thrust::raw_pointer_cast(this->d_mapWeight.data()), this->map_width, this->vec_dim);
-
+	setBMUPosition();
+	
 }
 
 __global__ void InitWeighSFromGPU(float* weightS) {

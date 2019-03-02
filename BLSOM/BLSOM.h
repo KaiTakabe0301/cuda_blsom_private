@@ -8,6 +8,8 @@
 #include <device_launch_parameters.h>
 #include<thrust\device_vector.h>
 #include<thrust\host_vector.h>
+#include<thrust\extrema.h>
+#include <thrust/execution_policy.h>
 #include<memory>
 
 class BLSOM {
@@ -54,6 +56,9 @@ private:
 	thrust::host_vector<float> h_aveVec;							//平均ベクトル
 	/*--- CPU用計算変数ここまで ---*/
 	
+	int getBMUIndex();		//
+	void setBMUPosition();	//
+
 	float dist();	//ユークリッド距離の計算
 	void BMU(float* input_xk);
 
@@ -61,6 +66,7 @@ private:
 	void  InitMapWeight();	//初期マップの作成
 	void  InitRandWeightFromGPU();//ランダムに初期化を行う
 	void  searchBMUFromGPU(int epoc_num,int data_size);		//epoc_num * data_size + vec_dimで座標を決定
+
 
 
 
