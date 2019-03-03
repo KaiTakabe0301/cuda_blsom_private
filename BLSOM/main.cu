@@ -11,7 +11,7 @@ int main(int argc, char** argv) {
 	int vec_dim = VEC_DIM;
 	int map_width = MAP_WIDTH;
 	int map_height = MAP_HEIGHT;
-	float map_wight[MAP_WIDTH*MAP_HEIGHT] = {};
+	float map_weight[MAP_WIDTH*MAP_HEIGHT*VEC_DIM] = {};
 	float ave_vec[VEC_DIM] = {};
 	float rot1[VEC_DIM] = {};
 	float rot2[VEC_DIM] = {};

@@ -213,6 +213,24 @@ __global__ void CalcWeightSFromGPU(float* input_xk, int* bmuPos, float* weightS,
 
 }
 
+__global__ void UpdateMapWeightFromGPU(float* mapWeight, float* weightS,
+									   const int map_width, const int vec_dim,
+									   const double iAlfa, const double tAlfa, const int lnum) {
+	int ix = blockIdx.x*blockDim.x;
+	int iy = blockIdx.y*blockDim.y;
+	int map_idx = map_width*vec_dim*iy + vec_dim*ix + threadIdx.z;
+	int weiS_eIdx = map_width*vec_dim*iy + vec_dim*ix + vec_dim;	//weightS[ix][iy][vec_dim]
+
+	float alfaFunc = MAX(0.01, (iAlfa*(1.0 - (lnum / tAlfa))));
+
+	if (weightS[weiS_eIdx] > 0) {
+		weightS[map_idx] /= weightS[weiS_eIdx];
+		weightS[map_idx] -= mapWeight[map_idx];
+		weightS[map_idx] *= alfaFunc;
+		mapWeight[map_idx] += weightS[map_idx];
+	}
+}
+
 void BLSOM::BMU(float* input_xk) {
 	dim3 block(1, 1, this->vec_dim);
 	dim3 grid(this->map_height, this->map_width);
@@ -238,6 +256,19 @@ void BLSOM::CalcWeightS(float* input_xk, int Lnum) {
 											
 }
 
+void BLSOM::UpdateMapWeight(int Lnum) {
+	dim3 block(1, 1, this->vec_dim);
+	dim3 grid(this->map_height, this->map_width);
+
+	UpdateMapWeightFromGPU <<<grid,block>>> (thrust::raw_pointer_cast(this->d_mapWeight.data()),
+											 thrust::raw_pointer_cast(this->d_weightS.data()),
+											 this->map_width,
+											 this->vec_dim,
+											 this->iAlfa,
+											 this->t_alfa,
+											 Lnum);
+}
+
 __global__ void InitWeighSFromGPU(float* weightS) {
 	int idx = blockIdx.x*blockDim.x + threadIdx.x;
 	weightS[idx] = 0;
@@ -257,7 +288,9 @@ void BLSOM::Learning(int Lnum) {
 				this->BMU(thrust::raw_pointer_cast(&(this->d_trains[i * (this->train_num) * (this->vec_dim) + j*(this->vec_dim)]))); //“Y‚¦Žš‚ðC³
 				this->CalcWeightS(thrust::raw_pointer_cast(&(this->d_trains[i * (this->train_num) * (this->vec_dim) + j*(this->vec_dim)])), l);
 			}
-
+			this->UpdateMapWeight(l);
 		}
 	}
+
+	std::cout << "Learning Finish" << std::endl;
 }
