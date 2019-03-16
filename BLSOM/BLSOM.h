@@ -83,6 +83,8 @@ public:
 	void Learning(int Lnum);
 	void Classification();	///Learning実行後、エポック事の最近傍ノードを割り振る
 
+	float* GetSOMMap();
+
 	/*--- 計算に必要な変数を格納する関数ここから ---*/
 	void SetHyperParameter(double initAlfa, double initBeta, double timeAlfa, double timeBeta);		///initAlfa=学習係数 initBeta学習=半径 timeAlfa=時定数 timeBeta=時定数
 	void SetStandardDeviation(float sdev1, float sdev2);

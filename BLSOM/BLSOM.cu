@@ -294,3 +294,8 @@ void BLSOM::Learning(int Lnum) {
 
 	std::cout << "Learning Finish" << std::endl;
 }
+
+float* BLSOM::GetSOMMap() {
+	this->h_mapWeight = this->d_mapWeight;
+	return thrust::raw_pointer_cast(this->h_mapWeight);
+}

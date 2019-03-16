@@ -5,6 +5,8 @@
 #define VEC_DIM 3
 #define MAP_WIDTH 10
 #define MAP_HEIGHT 20
+#define TRAIN_NUM 200
+#define EPOC_NUM 0
 
 int main(int argc, char** argv) {
 	int device;
