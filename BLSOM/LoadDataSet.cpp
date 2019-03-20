@@ -1,9 +1,5 @@
 #include"LoadDataSet.h"
-#include<string>
-#include<vector>
-#include<fstream>
-#include<iostream>
-#include<sstream>
+
 
 std::vector <std::string> split(std::string str, char delim) {
 	std::vector<std::string> elements;
@@ -28,22 +24,31 @@ std::vector <std::string> split(std::string str, char delim) {
 }
 
 
-std::vector<float> LoadStandardDev(std::string fileName,bool header=true) {
+std::vector<float> LoadStandardDev(std::string fileName, char delim, bool header) {
 	std::vector<float> sdev;
 	std::vector<std::string> elem;
 	std::ifstream ifs;
 	std::string line;
 
-	ifs.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+	ifs.exceptions(std::ifstream::badbit);
 	try {
 		ifs.open(fileName);
+
+		if (!ifs) {
+			std::cerr << "File opening failed" << std::endl;
+			exit(1);
+		}
+
 		if (header) {
 			getline(ifs, line);
 		}
+
 		while (getline(ifs, line))
 		{
-			elem = split(line, ' ');
-			sdev.push_back(stof(elem[1]));
+			if (!line.empty()) {
+				elem = split(line, delim);
+				sdev.push_back(stof(elem[1]));
+			}
 		}
 		ifs.close();
 	}
@@ -53,7 +58,7 @@ std::vector<float> LoadStandardDev(std::string fileName,bool header=true) {
 	return sdev;
 }
 
-std::vector<std::vector<float>> LoadRotation(std::string fileName,bool header) {
+std::vector<std::vector<float>> LoadRotation(std::string fileName, char delim, bool header) {
 	std::vector<std::vector<float>> rotation;
 	std::vector<float> rot1;
 	std::vector<float> rot2;
@@ -62,17 +67,26 @@ std::vector<std::vector<float>> LoadRotation(std::string fileName,bool header) {
 	std::ifstream ifs;
 	std::string line;
 
-	ifs.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+	ifs.exceptions(std::ifstream::badbit);
 	try {
 		ifs.open(fileName);
+
+		if (!ifs) {
+			std::cerr << "File opening failed" << std::endl;
+			exit(1);
+		}
+
 		if (header) {
 			getline(ifs, line);
 		}
+
 		while (getline(ifs, line))
 		{
-			elem = split(line, ' ');
-			rot1.push_back(stof(elem[1]));
-			rot2.push_back(stof(elem[2]));
+			if (!line.empty()) {
+				elem = split(line, delim);
+				rot1.push_back(stof(elem[1]));
+				rot2.push_back(stof(elem[2]));
+			}
 		}
 		ifs.close();
 	}
@@ -85,26 +99,64 @@ std::vector<std::vector<float>> LoadRotation(std::string fileName,bool header) {
 	return rotation;
 }
 
-std::vector<float> LoadTrain(std::string fileName) {
+std::vector<float> LoadTrain(std::string fileName, char delim, bool header) {
+	std::vector<float> train;
+	std::vector<std::string> elem;
+	std::ifstream ifs;
+	std::string line;
 
+	ifs.exceptions(std::ifstream::badbit);
+	try {
+		ifs.open(fileName);
+		
+		if (!ifs) {
+			std::cerr << "File opening failed" << std::endl;
+			exit(1);
+		}
+
+		if (header) {
+			getline(ifs, line);
+		}
+
+		while (getline(ifs, line))
+		{	
+			elem = split(line, delim);
+			for each(std::string el in elem)
+				train.push_back(stof(el));
+		}
+		ifs.close();
+	}
+	catch (std::ifstream::failure e) {
+		std::cerr << "Exception opening/reading/closing file" << std::endl;
+	}
+	return train;
 }
 
-std::vector<float> LoadAverageVector(std::string fileName,bool header) {
+std::vector<float> LoadAverageVector(std::string fileName, char delim, bool header) {
 	std::vector<float> ave;
 	std::vector<std::string> elem;
 	std::ifstream ifs;
 	std::string line;
 
-	ifs.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+	ifs.exceptions(std::ifstream::badbit);
 	try {
 		ifs.open(fileName);
-		if (header) {
-			getline(ifs, line);
+
+		if (!ifs) {
+			std::cerr << "File opening failed" << std::endl;
+			exit(1);
 		}
-		while (getline(ifs, line))
+
+		if (header) {
+			std::getline(ifs, line);
+		}
+
+		while (std::getline(ifs, line))
 		{
-			elem = split(line, ' ');
-			ave.push_back(stof(elem[1]));
+			if (!line.empty()) {
+				elem = split(line, delim);
+				ave.push_back(stof(elem[1]));
+			}
 		}
 		ifs.close();
 	}

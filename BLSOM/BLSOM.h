@@ -12,6 +12,12 @@
 #include <thrust/execution_policy.h>
 #include<memory>
 
+#define INIT_BATCH 0
+#define INIT_RANDOM 1
+
+const int InitBatch = 0;
+const int InitRandom = 1;
+
 class BLSOM {
 private:
 
@@ -33,7 +39,8 @@ private:
 	bool flg_gpu;								//GPUを使用するか否か
 	int   d_Acs;							//使用するGPU
 	thrust::device_vector<float> d_mapWeight;						//J×I行列のマップの領域確保に利用
-	thrust::device_vector<float> d_weightS;							//代表ベクトルWij 
+	thrust::device_vector<float> d_weightS;							//代表ベクトルWij
+	thrust::device_vector<float> d_cntWeightS;						//代表ベクトルの分類数
 	thrust::device_vector<float> d_node;							//node
 	thrust::device_vector<int> d_bmuPos;							//d_bmuPos[0]=x,d_bmuPos[1]=y
 	thrust::device_vector<float> d_train;							//学習データ
@@ -47,6 +54,7 @@ private:
 	/*--- CPU用計算変数ここから ---*/
 	thrust::host_vector<float> h_mapWeight;						//J×I行列のマップの領域確保に利用
 	thrust::host_vector<float> h_weightS;						//代表ベクトルWij 
+	thrust::device_vector<float> h_cntWeightS;					//代表ベクトルの分類数
 	thrust::host_vector<float> h_node;							//node
 	thrust::host_vector<int> h_bmuPos;							//d_bmuPos[0]=x,d_bmuPos[1]=y
 	thrust::host_vector<float> h_train;							//学習データ
@@ -65,12 +73,11 @@ private:
 	void UpdateMapWeight(int Lnum);
 
 	/*--- GPU利用関数 ---*/
-	void  InitMapWeight();	//初期マップの作成
 	void  InitRandWeightFromGPU();//ランダムに初期化を行う
 	void  searchBMUFromGPU(int epoc_num,int data_size);		//epoc_num * data_size + vec_dimで座標を決定
 
-
-
+	void d_showWeightS();
+	void d_showCntS();
 
 public:
 	BLSOM(int vec_dim, int map_width);
@@ -79,7 +86,7 @@ public:
 	BLSOM(int vec_dim, int map_width, int map_height, int device,int gpuFlag);
 	~BLSOM();
 	void Init(const float sdev1, const float sdev2, const float* rot1, const float* rot2, const float *aveVec);
-	
+	void InitMapWeight(int mode=InitBatch);	//初期マップの作成
 	void Learning(int Lnum);
 	void Classification();	///Learning実行後、エポック事の最近傍ノードを割り振る
 
@@ -90,7 +97,7 @@ public:
 	void SetStandardDeviation(float sdev1, float sdev2);
 	void SetRotation(float* rot1, float *rot2);
 	void SetAverageVecter(float *aveVec);
-	void SetTrainingData(const float* train,const int train_num, const int epoc_num);
+	void SetTrainingData(const float* train,const int train_num, const int epoc_num=1);
 	/*--- 計算に必要な変数を格納する関数ここまで ---*/
 
 	void Test();
