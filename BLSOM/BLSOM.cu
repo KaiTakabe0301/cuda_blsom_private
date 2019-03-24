@@ -167,7 +167,7 @@ __global__ void InitMapWeightRandFromGPU(float* mapWeight, const int map_width, 
 	int iy = blockIdx.y*blockDim.y;
 	int idx = map_width*vec_dim*iy + vec_dim*ix + threadIdx.z;
 
-	//mapWeight[idx] = Xorshift128();
+
 }
 
 void BLSOM::InitMapWeight(int mode) {
