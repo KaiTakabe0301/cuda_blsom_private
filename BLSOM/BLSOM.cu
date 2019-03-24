@@ -23,39 +23,6 @@ using namespace std;
 	}																	\
 }
 
-__device__ static unsigned long xors_x = 123456789;
-__device__ static unsigned long xors_y = 362436069;
-__device__ static unsigned long xors_z = 521288629;
-__device__ static unsigned long xors_w = 88675123;
-
-
-__device__
-unsigned long Xorshift128()
-{
-	unsigned long t;
-	t = (xors_x ^ (xors_x << 11));
-	xors_x = xors_y; xors_y = xors_z; xors_z = xors_w;
-	return (xors_w = (xors_w ^ (xors_w >> 19)) ^ (t ^ (t >> 8)));
-}
-
-
-__device__
-long Xorshift128(long l, long h)
-{
-	unsigned long t;
-	t = (xors_x ^ (xors_x << 11));
-	xors_x = xors_y; xors_y = xors_z; xors_z = xors_w;
-	xors_w = (xors_w ^ (xors_w >> 19)) ^ (t ^ (t >> 8));
-	return l + (xors_w % (h - l));
-}
-
-
-__device__
-float XorFrand(float l, float h)
-{
-	return l + (h - l)*(Xorshift128(0, 1000000) / 1000000.0f);
-}
-
 
 bool checkAllocatedMemory(void* pointer) {
 	if (pointer != NULL) {
@@ -126,16 +93,11 @@ void BLSOM::Init(const float sdev1, const float sdev2, const float* rot1, const 
 		this->d_sdev = thrust::device_vector<float>(2);
 		this->d_bmuPos = thrust::device_vector<int>(2);
 
-
 		cudaMemcpy(thrust::raw_pointer_cast(this->d_rot1.data()), rot1, this->vec_dim * sizeof(float), cudaMemcpyHostToDevice);
 		cudaMemcpy(thrust::raw_pointer_cast(this->d_rot2.data()), rot2, this->vec_dim * sizeof(float), cudaMemcpyHostToDevice);
 		cudaMemcpy(thrust::raw_pointer_cast(this->d_aveVec.data()), aveVec, this->vec_dim * sizeof(float), cudaMemcpyHostToDevice);
 		cudaMemcpy(thrust::raw_pointer_cast(this->d_sdev.data()), &sdev1, sizeof(float), cudaMemcpyHostToDevice);
 		cudaMemcpy(thrust::raw_pointer_cast(this->d_sdev.data()+1), &sdev2, sizeof(float), cudaMemcpyHostToDevice);
-
-		for(int i=0;i<vec_dim;i++)
-			std::cout << this->d_rot1[i] << std::endl;
-
 	}
 
 	this->h_mapWeight = thrust::host_vector<float>(this->map_width*this->map_height*this->vec_dim);
@@ -205,7 +167,7 @@ __global__ void InitMapWeightRandFromGPU(float* mapWeight, const int map_width, 
 	int iy = blockIdx.y*blockDim.y;
 	int idx = map_width*vec_dim*iy + vec_dim*ix + threadIdx.z;
 
-	mapWeight[idx] = Xorshift128();
+	//mapWeight[idx] = Xorshift128();
 }
 
 void BLSOM::InitMapWeight(int mode) {
