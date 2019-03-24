@@ -67,16 +67,17 @@ private:
 	int getBMUIndex();		//
 	void setBMUPosition();	//
 
-	float dist();	//ユークリッド距離の計算
+
 	void BMU(float* input_xk);
 	void CalcWeightS(float* input_xk, int Lnum);
 	void UpdateMapWeight(int Lnum);
 
 	/*--- GPU利用関数 ---*/
-	void  InitRandWeightFromGPU();//ランダムに初期化を行う
+	void  InitMapWeightRand();//ランダムに初期化を行う
 	void  searchBMUFromGPU(int epoc_num,int data_size);		//epoc_num * data_size + vec_dimで座標を決定
 
 	void d_showWeightS();
+	void d_showMapWeight();
 	void d_showCntS();
 
 public:

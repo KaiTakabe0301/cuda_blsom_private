@@ -1,6 +1,8 @@
 
 #include "BLSOM.h"
 #include "SelectGPU.h"
+#include <cuda.h>
+#include <curand_kernel.h>
 
 using namespace std;
 
@@ -162,12 +164,40 @@ __global__ void InitMapWeightFromGPU(float* mapWeight,float* ave_vec, float* sde
 	mapWeight[idx] = ave_vec[threadIdx.z]+ sigmaB1*((ix - (map_width / 2.0)) / map_width) + sigmaB2*((iy - (map_height / 2.0)) / map_height);
 }
 
-__global__ void InitMapWeightRandFromGPU(float* mapWeight, const int map_width, const int vec_dim, long int l,long int h) {
+__global__ void setup_kernel(curandState *state, const int map_width, const int vec_dim)
+{
+	int ix = blockIdx.x*blockDim.x;
+	int iy = blockIdx.y*blockDim.y;
+	int idx = map_width*vec_dim*iy + vec_dim*ix + threadIdx.z;
+	curand_init(1234, idx, 0, &state[idx]);
+}
+
+__global__ void InitMapWeightRandFromGPU(curandState* state, float* mapWeight, const int map_width, const int vec_dim, unsigned int l, unsigned int h) {
+	unsigned int x;
 	int ix = blockIdx.x*blockDim.x;
 	int iy = blockIdx.y*blockDim.y;
 	int idx = map_width*vec_dim*iy + vec_dim*ix + threadIdx.z;
 
+	curandState  localState = state[idx];
+	x = curand(&localState);
 
+	state[idx] = localState;
+	mapWeight[idx] = l + (x % (h+1));
+}
+
+void BLSOM::InitMapWeightRand() {
+
+	dim3 block(1, 1, this->vec_dim);
+	dim3 grid(this->map_width, this->map_height);
+	thrust::device_vector<curandState> devStates(this->map_width * this->map_height * this->vec_dim);
+
+	setup_kernel << < grid, block >> > (thrust::raw_pointer_cast(devStates.data()),this->map_width, this->vec_dim);
+	InitMapWeightRandFromGPU << <grid, block >> >(thrust::raw_pointer_cast(devStates.data()),
+		thrust::raw_pointer_cast(this->d_mapWeight.data()),
+		this->map_width,
+		this->vec_dim,
+		0,
+		255);
 }
 
 void BLSOM::InitMapWeight(int mode) {
@@ -187,17 +217,13 @@ void BLSOM::InitMapWeight(int mode) {
 		break;
 
 	case INIT_RANDOM:
-		InitMapWeightRandFromGPU <<<grid, block >>>(thrust::raw_pointer_cast(this->d_mapWeight.data()),
-													this->map_width,
-													this->vec_dim,
-													0,
-													255);
+		InitMapWeightRand();
 		break;
+
 	default:
 		break;
 	}
 	
-
 }
 
 __global__ void InitNodeFromGPU(float* node,const int map_width) {
@@ -233,7 +259,6 @@ void BLSOM::setBMUPosition() {
 	//std::cout << d_node[0] << std::endl;	
 	//std::cout << d_bmuPos[0] << std::endl;
 	//std::cout << d_bmuPos[1] << std::endl;
-
 }
 
 __global__ void CalcWeightSFromGPU(float* input_xk, int* bmuPos, float* weightS,float* cntWeightS,
@@ -251,8 +276,9 @@ __global__ void CalcWeightSFromGPU(float* input_xk, int* bmuPos, float* weightS,
 
 	if ((Beta*Beta - dist) >= 0) {
 		//printf("calsWeightS\n");
-		for (int dim = 0; dim<vec_dim; dim++)
-			weightS[weiS_idx+dim] += input_xk[dim];
+		for (int dim = 0; dim < vec_dim; dim++) {
+			weightS[weiS_idx + dim] += input_xk[dim];
+		}
 		cntWeightS[cntS_idx]++;
 	}
 
@@ -319,29 +345,33 @@ void BLSOM::UpdateMapWeight(int Lnum) {
 											 Lnum);
 }
 
-__global__ void InitWeighSFromGPU(float* weightS,float* cntWeightS) {
-	int cntIdx = blockIdx.x*blockDim.x;
-	int idx = blockIdx.x*blockDim.x + threadIdx.x;
+__global__ void InitWeighSFromGPU(float* weightS,float* cntWeightS,const int map_width, const int vec_dim) {
+	int ix = blockIdx.x*blockDim.x;
+	int iy = blockIdx.y*blockDim.y;
+	int cnt_idx = map_width*iy + ix;
+	int wei_idx = map_width*vec_dim*iy + vec_dim*ix;
 
-	weightS[idx] = 0;
-	cntWeightS[cntIdx] = 0;
+	for (int dim = 0; dim < vec_dim; dim++) {
+		weightS[wei_idx + dim] = 0;
+	}
+	cntWeightS[cnt_idx] = 0;
 }
 
 void BLSOM::Learning(int Lnum) {
 	std::cout << "Learning Start" << std::endl;
 
 	dim3 weightS_block(this->vec_dim);
-	dim3 weightS_grid(this->map_height*this->map_width);
+	dim3 weightS_grid(this->map_width,this->map_height);
 
 	for (int l = 0; l < Lnum; l++) {
 		//std::cout << "Learning : " << l << "/" << Lnum << "\r";
 
 		for (int i = 0; i < this->epoc_num; i++) {
-			InitWeighSFromGPU <<< weightS_grid, weightS_block >>> (thrust::raw_pointer_cast(this->d_weightS.data()), thrust::raw_pointer_cast(this->d_cntWeightS.data()));
+			InitWeighSFromGPU <<< weightS_grid, 1 >>> (thrust::raw_pointer_cast(this->d_weightS.data()), thrust::raw_pointer_cast(this->d_cntWeightS.data()),this->map_width,this->vec_dim);
 			//d_showWeightS();
-			std::cout << this->d_mapWeight[0] << std::endl;
-			std::cout << this->d_mapWeight[1] << std::endl;
-			std::cout << this->d_mapWeight[2] << std::endl;
+			std::cout << this->d_mapWeight[3] << std::endl;
+			std::cout << this->d_mapWeight[4] << std::endl;
+			std::cout << this->d_mapWeight[5] << std::endl;
 			std::cout << "\n\n";
 
 			for (int j = 0; j < this->train_num; j++) {
@@ -379,6 +409,18 @@ void BLSOM::d_showWeightS() {
 			std::cout << "(" << w << "," << h << "): ";
 			for (int d = 0; d < this->vec_dim; d++) {
 				 std::cout << this->d_weightS[h*map_width*vec_dim + w*vec_dim + d] << " ";
+			}
+			std::cout << "\n";
+		}
+	}
+}
+
+void BLSOM::d_showMapWeight() {
+	for (int h = 0; h < this->map_height; h++) {
+		for (int w = 0; w < this->map_width; w++) {
+			std::cout << "(" << w << "," << h << "): ";
+			for (int d = 0; d < this->vec_dim; d++) {
+				std::cout << this->d_mapWeight[h*map_width*vec_dim + w*vec_dim + d] << " ";
 			}
 			std::cout << "\n";
 		}

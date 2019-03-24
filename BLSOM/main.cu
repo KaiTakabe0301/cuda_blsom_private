@@ -5,7 +5,7 @@
 #include<curand_kernel.h>
 
 #define MAP_WIDTH 200
-#define MAP_HEIGHT 150
+#define MAP_HEIGHT 50
 #define TRAIN_NUM 200
 #define EPOC_NUM 0
 
@@ -51,13 +51,6 @@ int main(int argc, char** argv) {
 	rotation = LoadRotation("C:\\Users\\Kai\\Desktop\\mori_PCA\\rotation.txt");
 	sdev = LoadStandardDev("C:\\Users\\Kai\\Desktop\\mori_PCA\\sdev.txt");
 
-	/*for (int i = 0; i < trains.size() / ave_vec.size(); i++){
-		for (int j = 0; j < ave_vec.size(); j++) {
-			std::cout << trains[i*ave_vec.size() + j] << " ";
-		}
-		std::cout << std::endl;
-	}*/
-
 	map_width = MAP_WIDTH;
 	map_height = MAP_HEIGHT;
 	vec_dim = ave_vec.size();
@@ -67,14 +60,14 @@ int main(int argc, char** argv) {
 	BLSOM test = BLSOM(vec_dim, map_width);
 	test.Init(sdev[0], sdev[1], rotation[0].data(), rotation[1].data(), ave_vec.data());
 	test.SetTrainingData(trains.data(), trains.size() / ave_vec.size());
-	test.InitMapWeight();
+	test.InitMapWeight(INIT_RANDOM);
 	a = test.GetSOMMap();
 	WriteSOMMAP("C:\\Users\\Kai\\Desktop\\mori_PCA\\init_batch_map.txt", a, vec_dim, map_width, test.MapHeight());
 
 	test.Learning(50);
 	a = test.GetSOMMap();
 	std::cout << a[0] << std::endl;
-	WriteSOMMAP("C:\\Users\\Kai\\Desktop\\mori_PCA\\result_batch_20190320.txt", a, vec_dim, map_width, test.MapHeight());
+	WriteSOMMAP("C:\\Users\\Kai\\Desktop\\mori_PCA\\result_random_20190324.txt", a, vec_dim, map_width, test.MapHeight());
 
 	/*--- Select GPU for BLSOM ---*/
 	//SelectGPU(&device);
