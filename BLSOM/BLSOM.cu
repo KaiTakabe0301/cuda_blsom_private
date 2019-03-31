@@ -119,7 +119,6 @@ void BLSOM::Init(const float sdev1, const float sdev2, const float* rot1, const 
 	memcpy(thrust::raw_pointer_cast(this->h_sdev.data()), &sdev1, sizeof(float));
 	memcpy(thrust::raw_pointer_cast(this->h_sdev.data()+1), &sdev2, sizeof(float));
 
-	//InitMapWeight();
 }
 
 void BLSOM::SetTrainingData(const float* train, const int train_num, const int epoc_num) {
@@ -345,6 +344,17 @@ void BLSOM::UpdateMapWeight(int Lnum) {
 											 Lnum);
 }
 
+__global__ void InitCntWeightSFromGPU(float* cntWeightS) {
+	int idx = blockIdx.x*blockDim.x + threadIdx.x;
+	cntWeightS[idx] = 0;
+
+}
+
+__global__ void InitWeighSFromGPU(float* weightS) {
+	int idx = blockIdx.x*blockDim.x + threadIdx.x;
+	weightS[idx] = 0;
+}
+/*
 __global__ void InitWeighSFromGPU(float* weightS,float* cntWeightS,const int map_width, const int vec_dim) {
 	int ix = blockIdx.x*blockDim.x;
 	int iy = blockIdx.y*blockDim.y;
@@ -356,19 +366,29 @@ __global__ void InitWeighSFromGPU(float* weightS,float* cntWeightS,const int map
 	}
 	cntWeightS[cnt_idx] = 0;
 }
+*/
 
 void BLSOM::Learning(int Lnum) {
 	std::cout << "Learning Start" << std::endl;
-
+	
+	int nWeightS = this->map_width*this->map_height*this->vec_dim;
 	dim3 weightS_block(this->vec_dim);
-	dim3 weightS_grid(this->map_width,this->map_height);
+	dim3 weightS_grid((nWeightS+weightS_block.x-1)/weightS_block.x);
+
+	int nCntWeightS = this->map_width*this->map_height;
+	dim3 cntWeightS_block(this->map_height);
+	dim3 cntWeightS_grid((nCntWeightS+cntWeightS_block.x-1)/cntWeightS_block.x);
+
 
 	for (int l = 0; l < Lnum; l++) {
 		//std::cout << "Learning : " << l << "/" << Lnum << "\r";
 
 		for (int i = 0; i < this->epoc_num; i++) {
-			InitWeighSFromGPU <<< weightS_grid, 1 >>> (thrust::raw_pointer_cast(this->d_weightS.data()), thrust::raw_pointer_cast(this->d_cntWeightS.data()),this->map_width,this->vec_dim);
+			//InitWeighSFromGPU <<< weightS_grid, 1 >>> (thrust::raw_pointer_cast(this->d_weightS.data()), thrust::raw_pointer_cast(this->d_cntWeightS.data()),this->map_width,this->vec_dim);
 			//d_showWeightS();
+			InitCntWeightSFromGPU << <cntWeightS_grid, cntWeightS_block >> > (thrust::raw_pointer_cast(this->d_cntWeightS.data()));
+			InitWeighSFromGPU << <weightS_grid, weightS_block >> > (thrust::raw_pointer_cast(this->d_weightS.data()));
+
 			std::cout << this->d_mapWeight[3] << std::endl;
 			std::cout << this->d_mapWeight[4] << std::endl;
 			std::cout << this->d_mapWeight[5] << std::endl;

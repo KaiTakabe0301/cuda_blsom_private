@@ -55,12 +55,10 @@ int main(int argc, char** argv) {
 	map_height = MAP_HEIGHT;
 	vec_dim = ave_vec.size();
 
-	map_weight = std::make_shared<float>(map_width*map_height*vec_dim);
-
 	BLSOM test = BLSOM(vec_dim, map_width);
 	test.Init(sdev[0], sdev[1], rotation[0].data(), rotation[1].data(), ave_vec.data());
 	test.SetTrainingData(trains.data(), trains.size() / ave_vec.size());
-	test.InitMapWeight(INIT_RANDOM);
+	test.InitMapWeight(INIT_BATCH);
 	a = test.GetSOMMap();
 	WriteSOMMAP("C:\\Users\\Kai\\Desktop\\mori_PCA\\init_batch_map.txt", a, vec_dim, map_width, test.MapHeight());
 
