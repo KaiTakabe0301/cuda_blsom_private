@@ -4,6 +4,7 @@
 #include"LoadDataSet.h"
 #include<curand_kernel.h>
 
+
 #define MAP_WIDTH 200
 #define MAP_HEIGHT 50
 #define TRAIN_NUM 200
@@ -39,13 +40,48 @@ int main(int argc, char** argv) {
 	int vec_dim;
 	int map_width;
 	int map_height;
-	float* a;
+	float* som;
 	std::shared_ptr<float> map_weight;
 	std::vector<float> trains;
 	std::vector<float> ave_vec;
 	std::vector<std::vector<float>> rotation;
 	std::vector<float> sdev;
 
+	std::vector<std::vector<int>> container;
+	std::vector<int> data;
+
+	std::vector<thrust::device_vector<float>> d_con;
+	thrust::device_vector<float> d_data;
+
+	for (int i = 1; i <= 9; i++) {
+		data.push_back(i);
+		d_data.push_back(i);
+		if (i % 3 == 0) {
+			container.push_back(data);
+			data.clear();
+
+			d_con.push_back(d_data);
+			d_data.clear();
+		}
+	}
+
+	for (int i = 0; i <3; i++) {
+		for (int j = 0; j < 3; j++) {
+			std::cout << &(container[i][j]) << " ";
+		}
+		std::cout << "\n";
+	}
+	std::cout << "\n";
+
+	for (int i = 0; i <3; i++) {
+		for (int j = 0; j < 3; j++) {
+			std::cout << d_con[i][j] << " ";
+		}
+		std::cout << "\n";
+	}
+
+
+	/* load init data */
 	trains = LoadTrain("C:\\Users\\Kai\\Desktop\\mori_PCA\\No1.epc", '\t');
 	ave_vec = LoadAverageVector("C:\\Users\\Kai\\Desktop\\mori_PCA\\vector_Ave.txt");
 	rotation = LoadRotation("C:\\Users\\Kai\\Desktop\\mori_PCA\\rotation.txt");
@@ -59,18 +95,17 @@ int main(int argc, char** argv) {
 	test.Init(sdev[0], sdev[1], rotation[0].data(), rotation[1].data(), ave_vec.data());
 	test.SetTrainingData(trains.data(), trains.size() / ave_vec.size());
 	test.InitMapWeight(INIT_BATCH);
-	a = test.GetSOMMap();
-	WriteSOMMAP("C:\\Users\\Kai\\Desktop\\mori_PCA\\init_batch_map.txt", a, vec_dim, map_width, test.MapHeight());
 
+	/* Get initial map */
+	som = test.GetSOMMap();
+	WriteSOMMAP("C:\\Users\\Kai\\Desktop\\mori_PCA\\init_batch_map.txt", som, vec_dim, map_width, test.MapHeight());
+
+	/* Learning */
 	test.Learning(50);
-	a = test.GetSOMMap();
-	std::cout << a[0] << std::endl;
-	WriteSOMMAP("C:\\Users\\Kai\\Desktop\\mori_PCA\\result_random_20190324.txt", a, vec_dim, map_width, test.MapHeight());
-
-	/*--- Select GPU for BLSOM ---*/
-	//SelectGPU(&device);
-
-	//test.GetMapWeight
+	
+	/* Get Learned Map */
+	som = test.GetSOMMap();
+	WriteSOMMAP("C:\\Users\\Kai\\Desktop\\mori_PCA\\result_random_20190324.txt", som, vec_dim, map_width, test.MapHeight());
 	
 	return 0;
 }

@@ -93,13 +93,17 @@ public:
 
 	float* GetSOMMap();
 
-	/*--- ŒvZ‚É•K—v‚È•Ï”‚ğŠi”[‚·‚éŠÖ”‚±‚±‚©‚ç ---*/
+	/*---Function to specify hyper parameter ---*/
 	void SetHyperParameter(double initAlfa, double initBeta, double timeAlfa, double timeBeta);		///initAlfa=ŠwKŒW” initBetaŠwK=”¼Œa timeAlfa=’è” timeBeta=’è”
 	void SetStandardDeviation(float sdev1, float sdev2);
 	void SetRotation(float* rot1, float *rot2);
 	void SetAverageVecter(float *aveVec);
+
+	/*---@Function to load training data@---*/
 	void SetTrainingData(const float* train,const int train_num, const int epoc_num=1);
-	/*--- ŒvZ‚É•K—v‚È•Ï”‚ğŠi”[‚·‚éŠÖ”‚±‚±‚Ü‚Å ---*/
+	void SetTrainingData(const std::vector<float> train);
+	void SetTrainingData(const std::vector<std::vector<float>>, const int train_num, const int epoc_num = 1);
+
 
 	void Test();
 
