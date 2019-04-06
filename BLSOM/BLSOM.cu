@@ -1,6 +1,7 @@
 
 #include "BLSOM.h"
 #include "SelectGPU.h"
+#include<algorithm>
 #include <cuda.h>
 #include <curand_kernel.h>
 
@@ -132,6 +133,37 @@ void BLSOM::SetTrainingData(const float* train, const int train_num, const int e
 	cudaMemcpy(thrust::raw_pointer_cast(this->d_trains.data()), thrust::raw_pointer_cast(this->h_trains.data()), epoc_num*train_num*this->vec_dim * sizeof(float), cudaMemcpyHostToDevice);
 
 }
+
+void BLSOM::SetTrainingData(const std::vector<std::vector<float>> train) {
+	float* tempTrain;
+	float* temp_begin;
+
+	this->epoc_num = 1;
+	this->train_num = train.size();
+
+	tempTrain = new float[epoc_num*train_num*this->vec_dim];
+	temp_begin = tempTrain;
+
+	this->h_trains = thrust::host_vector<float>(epoc_num*train_num*this->vec_dim);
+	this->d_trains = thrust::device_vector<float>(epoc_num*train_num*this->vec_dim);
+
+	for_each(train.begin(), train.end(), [&](std::vector<float> data) {memcpy(tempTrain, data.data(), data.size() * sizeof(float)); tempTrain += data.size();});
+
+	memcpy(thrust::raw_pointer_cast(this->h_trains.data()), temp_begin, epoc_num*train_num*this->vec_dim * sizeof(float));
+	cudaMemcpy(thrust::raw_pointer_cast(this->d_trains.data()), thrust::raw_pointer_cast(this->h_trains.data()), epoc_num*train_num*this->vec_dim * sizeof(float), cudaMemcpyHostToDevice);
+
+	std::cout << "test set trains\n";
+	for (int i = 0; i < train_num; i++) {
+		for (int j = 0; j < vec_dim; j++) {
+			std::cout << h_trains[i*vec_dim+j] << " ";
+		}
+		std::cout << "\n";
+	}
+	std::cout << "end set trains\n";
+	free(temp_begin);
+
+}
+
 
 void BLSOM::check_mapWeight() {
 	cudaMemcpy(thrust::raw_pointer_cast(this->h_mapWeight.data()), thrust::raw_pointer_cast(this->d_mapWeight.data()), sizeof(float)*this->map_width*this->map_height*this->vec_dim, cudaMemcpyDeviceToHost);

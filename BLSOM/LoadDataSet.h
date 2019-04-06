@@ -10,4 +10,6 @@ std::vector<std::vector<float>> LoadRotation(std::string fileName, char delim = 
 
 std::vector<float> LoadTrain(std::string fileName, char delim = ' ', bool header = true);
 
+std::vector<std::vector<float>> LoadTrains(std::string fileName, char delim, bool header=true);
+
 std::vector<float> LoadAverageVector(std::string fileName, char delim = ' ', bool header = true);

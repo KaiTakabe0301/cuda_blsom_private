@@ -132,6 +132,42 @@ std::vector<float> LoadTrain(std::string fileName, char delim, bool header) {
 	return train;
 }
 
+std::vector<std::vector<float>> LoadTrains(std::string fileName, char delim, bool header) {
+	std::vector<std::vector<float>> trains;
+	std::vector<float> train;
+	std::vector<std::string> elem;
+	std::ifstream ifs;
+	std::string line;
+
+	ifs.exceptions(std::ifstream::badbit);
+	try {
+		ifs.open(fileName);
+
+		if (!ifs) {
+			std::cerr << "File opening failed" << std::endl;
+			exit(1);
+		}
+
+		if (header) {
+			getline(ifs, line);
+		}
+
+		while (getline(ifs, line))
+		{
+			elem = split(line, delim);
+			for each(std::string el in elem)
+				train.push_back(stof(el));
+			trains.push_back(train);
+			train.clear();
+		}
+		ifs.close();
+	}
+	catch (std::ifstream::failure e) {
+		std::cerr << "Exception opening/reading/closing file" << std::endl;
+	}
+	return trains;
+}
+
 std::vector<float> LoadAverageVector(std::string fileName, char delim, bool header) {
 	std::vector<float> ave;
 	std::vector<std::string> elem;

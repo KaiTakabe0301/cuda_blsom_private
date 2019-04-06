@@ -3,7 +3,7 @@
 #include"SelectGPU.h"
 #include"LoadDataSet.h"
 #include<curand_kernel.h>
-
+#include<algorithm>
 
 #define MAP_WIDTH 200
 #define MAP_HEIGHT 50
@@ -43,6 +43,8 @@ int main(int argc, char** argv) {
 	float* som;
 	std::shared_ptr<float> map_weight;
 	std::vector<float> trains;
+	std::vector<std::vector<float>> Trains;
+
 	std::vector<float> ave_vec;
 	std::vector<std::vector<float>> rotation;
 	std::vector<float> sdev;
@@ -83,17 +85,28 @@ int main(int argc, char** argv) {
 
 	/* load init data */
 	trains = LoadTrain("C:\\Users\\Kai\\Desktop\\mori_PCA\\No1.epc", '\t');
+	Trains = LoadTrains("C:\\Users\\Kai\\Desktop\\mori_PCA\\No1.epc", '\t');
 	ave_vec = LoadAverageVector("C:\\Users\\Kai\\Desktop\\mori_PCA\\vector_Ave.txt");
 	rotation = LoadRotation("C:\\Users\\Kai\\Desktop\\mori_PCA\\rotation.txt");
 	sdev = LoadStandardDev("C:\\Users\\Kai\\Desktop\\mori_PCA\\sdev.txt");
 
+	
+	for each (std::vector<float> item in Trains)
+	{
+		for each(float el in item) {
+			std::cout << el << " ";
+		}
+		std::cout << "\n";
+	}
+	
 	map_width = MAP_WIDTH;
 	map_height = MAP_HEIGHT;
 	vec_dim = ave_vec.size();
 
 	BLSOM test = BLSOM(vec_dim, map_width);
 	test.Init(sdev[0], sdev[1], rotation[0].data(), rotation[1].data(), ave_vec.data());
-	test.SetTrainingData(trains.data(), trains.size() / ave_vec.size());
+	//test.SetTrainingData(trains.data(), trains.size() / ave_vec.size());
+	test.SetTrainingData(Trains);
 	test.InitMapWeight(INIT_BATCH);
 
 	/* Get initial map */

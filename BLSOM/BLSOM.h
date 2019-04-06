@@ -101,9 +101,8 @@ public:
 
 	/*---@Function to load training data@---*/
 	void SetTrainingData(const float* train,const int train_num, const int epoc_num=1);
-	void SetTrainingData(const std::vector<float> train);
-	void SetTrainingData(const std::vector<std::vector<float>>, const int train_num, const int epoc_num = 1);
-
+	void SetTrainingData(const std::vector<std::vector<float>> train);
+	void SetTrainingData(const std::vector< std::vector< std::vector<float> > > train);
 
 	void Test();
 
