@@ -43,8 +43,8 @@ private:
 	thrust::device_vector<float> d_cntWeightS;						//代表ベクトルの分類数
 	thrust::device_vector<float> d_node;							//node
 	thrust::device_vector<int> d_bmuPos;							//d_bmuPos[0]=x,d_bmuPos[1]=y
-	thrust::device_vector<float> d_train;							//学習データ
-	thrust::device_vector<float> d_trains;						//trains[エポック数][入力データ数](データの次元数)
+	//thrust::device_vector<float> d_train;							//学習データ
+	std::vector<thrust::device_vector<float>> d_trains;						//trains[エポック数][入力データ数](データの次元数)
 	thrust::device_vector<float> d_sdev;							//標準偏差σ1(d_sdev[0]),σ2(d_sdev[1])
 	thrust::device_vector<float> d_rot1, d_rot2;					//第一/第二rotation
 	thrust::device_vector<float> d_aveVec;						//平均ベクトル
@@ -57,7 +57,7 @@ private:
 	thrust::device_vector<float> h_cntWeightS;					//代表ベクトルの分類数
 	thrust::host_vector<float> h_node;							//node
 	thrust::host_vector<int> h_bmuPos;							//d_bmuPos[0]=x,d_bmuPos[1]=y
-	thrust::host_vector<float> h_train;							//学習データ
+	//thrust::host_vector<float> h_train;							//学習データ
 	thrust::host_vector<float> h_trains;						//trains[エポック数][入力データ数](データの次元数)
 	thrust::host_vector<float> h_sdev;							//標準偏差σ1(d_sdev[0]),σ2(d_sdev[1])
 	thrust::host_vector<float> h_rot1, h_rot2;					//第一/第二rotation
@@ -100,9 +100,8 @@ public:
 	void SetAverageVecter(float *aveVec);
 
 	/*---　Function to load training data　---*/
-	void SetTrainingData(const float* train,const int train_num, const int epoc_num=1);
 	void SetTrainingData(const std::vector<std::vector<float>> train);
-	void SetTrainingData(const std::vector< std::vector< std::vector<float> > > train);
+	void SetTrainingData(const std::vector<std::vector<std::vector<float>>> train);
 
 	void Test();
 

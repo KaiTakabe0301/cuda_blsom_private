@@ -92,7 +92,6 @@ void BLSOM::Init(const float sdev1, const float sdev2, const float* rot1, const 
 		this->d_rot1 = thrust::device_vector<float>(vec_dim);
 		this->d_rot2 = thrust::device_vector<float>(vec_dim);
 		this->d_aveVec = thrust::device_vector<float>(vec_dim);
-		this->d_train = thrust::device_vector<float>(vec_dim);
 		this->d_sdev = thrust::device_vector<float>(2);
 		this->d_bmuPos = thrust::device_vector<int>(2);
 
@@ -110,7 +109,6 @@ void BLSOM::Init(const float sdev1, const float sdev2, const float* rot1, const 
 	this->h_rot1 = thrust::host_vector<float>(this->vec_dim);
 	this->h_rot2 = thrust::host_vector<float>(this->vec_dim);
 	this->h_aveVec = thrust::host_vector<float>(this->vec_dim);
-	this->h_train = thrust::host_vector<float>(this->vec_dim);
 	this->h_sdev = thrust::host_vector<float>(2);
 	this->h_bmuPos = thrust::host_vector<int>(2);
 
@@ -122,46 +120,34 @@ void BLSOM::Init(const float sdev1, const float sdev2, const float* rot1, const 
 
 }
 
-void BLSOM::SetTrainingData(const float* train, const int train_num, const int epoc_num) {
-	this->epoc_num = epoc_num;
-	this->train_num = train_num;
-
-	this->h_trains = thrust::host_vector<float>(epoc_num*train_num*this->vec_dim);
-	this->d_trains = thrust::device_vector<float>(epoc_num*train_num*this->vec_dim);
-	
-	memcpy(thrust::raw_pointer_cast(this->h_trains.data()), train, epoc_num*train_num*this->vec_dim*sizeof(float));
-	cudaMemcpy(thrust::raw_pointer_cast(this->d_trains.data()), thrust::raw_pointer_cast(this->h_trains.data()), epoc_num*train_num*this->vec_dim * sizeof(float), cudaMemcpyHostToDevice);
-
-}
-
 void BLSOM::SetTrainingData(const std::vector<std::vector<float>> train) {
 	float* tempTrain;
 	float* temp_begin;
 
-	this->epoc_num = 1;
 	this->train_num = train.size();
+	this->vec_dim = train[0].size();
 
-	tempTrain = new float[epoc_num*train_num*this->vec_dim];
+	tempTrain = new float[train_num*this->vec_dim];
 	temp_begin = tempTrain;
 
-	this->h_trains = thrust::host_vector<float>(epoc_num*train_num*this->vec_dim);
-	this->d_trains = thrust::device_vector<float>(epoc_num*train_num*this->vec_dim);
+	thrust::host_vector<float> h_train = thrust::host_vector<float>(train_num*this->vec_dim);
+	thrust::device_vector<float> d_train = thrust::device_vector<float>(train_num*this->vec_dim);
 
 	for_each(train.begin(), train.end(), [&](std::vector<float> data) {memcpy(tempTrain, data.data(), data.size() * sizeof(float)); tempTrain += data.size();});
 
-	memcpy(thrust::raw_pointer_cast(this->h_trains.data()), temp_begin, epoc_num*train_num*this->vec_dim * sizeof(float));
-	cudaMemcpy(thrust::raw_pointer_cast(this->d_trains.data()), thrust::raw_pointer_cast(this->h_trains.data()), epoc_num*train_num*this->vec_dim * sizeof(float), cudaMemcpyHostToDevice);
+	memcpy(thrust::raw_pointer_cast(h_train.data()), temp_begin,train_num*this->vec_dim * sizeof(float));
+	cudaMemcpy(thrust::raw_pointer_cast(d_train.data()), thrust::raw_pointer_cast(h_train.data()), train_num*this->vec_dim * sizeof(float), cudaMemcpyHostToDevice);
+	this->d_trains.push_back(d_train);
 
-	std::cout << "test set trains\n";
-	for (int i = 0; i < train_num; i++) {
-		for (int j = 0; j < vec_dim; j++) {
-			std::cout << h_trains[i*vec_dim+j] << " ";
-		}
-		std::cout << "\n";
-	}
-	std::cout << "end set trains\n";
 	free(temp_begin);
 
+}
+
+void BLSOM::SetTrainingData(const std::vector<std::vector<std::vector<float>>> train) {
+	
+	for (auto trains: train) {
+		this->SetTrainingData(trains);
+	}
 }
 
 
@@ -415,7 +401,7 @@ void BLSOM::Learning(int Lnum) {
 	for (int l = 0; l < Lnum; l++) {
 		//std::cout << "Learning : " << l << "/" << Lnum << "\r";
 
-		for (int i = 0; i < this->epoc_num; i++) {
+		for (int i = 0; i < this->d_trains.size(); i++) {
 			//InitWeighSFromGPU <<< weightS_grid, 1 >>> (thrust::raw_pointer_cast(this->d_weightS.data()), thrust::raw_pointer_cast(this->d_cntWeightS.data()),this->map_width,this->vec_dim);
 			//d_showWeightS();
 			InitCntWeightSFromGPU << <cntWeightS_grid, cntWeightS_block >> > (thrust::raw_pointer_cast(this->d_cntWeightS.data()));
@@ -439,8 +425,11 @@ void BLSOM::Learning(int Lnum) {
 				std::cout << "\n\n";
 				*/
 
-				this->BMU(thrust::raw_pointer_cast(&(this->d_trains[i * (this->train_num) * (this->vec_dim) + j*(this->vec_dim)]))); //“Y‚¦Žš‚ðC³
-				this->CalcWeightS(thrust::raw_pointer_cast(&(this->d_trains[i * (this->train_num) * (this->vec_dim) + j*(this->vec_dim)])), l);
+				//this->BMU(thrust::raw_pointer_cast(&(this->d_trains[i * (this->train_num) * (this->vec_dim) + j*(this->vec_dim)]))); //“Y‚¦Žš‚ðC³
+				//this->CalcWeightS(thrust::raw_pointer_cast(&(this->d_trains[i * (this->train_num) * (this->vec_dim) + j*(this->vec_dim)])), l);
+				this->BMU(thrust::raw_pointer_cast(&(this->d_trains[i][j*(this->vec_dim)]))); //“Y‚¦Žš‚ðC³
+				this->CalcWeightS(thrust::raw_pointer_cast(&(this->d_trains[i][j*(this->vec_dim)])), l);
+
 				//d_showWeightS();
 			}
 			this->UpdateMapWeight(l);

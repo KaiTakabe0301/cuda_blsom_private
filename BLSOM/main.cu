@@ -44,6 +44,8 @@ int main(int argc, char** argv) {
 	std::shared_ptr<float> map_weight;
 	std::vector<float> trains;
 	std::vector<std::vector<float>> Trains;
+	std::vector<std::vector<std::vector<float>>> epocs;
+
 
 	std::vector<float> ave_vec;
 	std::vector<std::vector<float>> rotation;
@@ -89,7 +91,7 @@ int main(int argc, char** argv) {
 	ave_vec = LoadAverageVector("C:\\Users\\Kai\\Desktop\\mori_PCA\\vector_Ave.txt");
 	rotation = LoadRotation("C:\\Users\\Kai\\Desktop\\mori_PCA\\rotation.txt");
 	sdev = LoadStandardDev("C:\\Users\\Kai\\Desktop\\mori_PCA\\sdev.txt");
-
+	epocs.push_back(Trains);
 	
 	for each (std::vector<float> item in Trains)
 	{
@@ -106,7 +108,7 @@ int main(int argc, char** argv) {
 	BLSOM test = BLSOM(vec_dim, map_width);
 	test.Init(sdev[0], sdev[1], rotation[0].data(), rotation[1].data(), ave_vec.data());
 	//test.SetTrainingData(trains.data(), trains.size() / ave_vec.size());
-	test.SetTrainingData(Trains);
+	test.SetTrainingData(epocs);
 	test.InitMapWeight(INIT_BATCH);
 
 	/* Get initial map */
@@ -118,7 +120,7 @@ int main(int argc, char** argv) {
 	
 	/* Get Learned Map */
 	som = test.GetSOMMap();
-	WriteSOMMAP("C:\\Users\\Kai\\Desktop\\mori_PCA\\result_random_20190324.txt", som, vec_dim, map_width, test.MapHeight());
+	WriteSOMMAP("C:\\Users\\Kai\\Desktop\\mori_PCA\\result_random_20190406.txt", som, vec_dim, map_width, test.MapHeight());
 	
 	return 0;
 }
