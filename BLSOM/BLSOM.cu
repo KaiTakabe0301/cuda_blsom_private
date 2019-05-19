@@ -37,7 +37,7 @@ bool checkAllocatedMemory(void* pointer) {
 }
 
 BLSOM::BLSOM(int vec_dim, int map_width) :iAlfa(0.5), iBeta(40), t_alfa(30), t_beta(20),
-										  vec_dim(vec_dim), map_width(map_width), flg_gpu(true) {
+										  vec_dim(vec_dim), map_width(map_width), flg_gpu(true), flg_iniBatch(false) {
 	int device;
 	
 	this->map_height = 0;
@@ -49,7 +49,7 @@ BLSOM::BLSOM(int vec_dim, int map_width) :iAlfa(0.5), iBeta(40), t_alfa(30), t_b
 }
 
 BLSOM::BLSOM(int vec_dim, int map_width, int map_height) :iAlfa(0.5), iBeta(40), t_alfa(30), t_beta(20),
-														  vec_dim(vec_dim), map_width(map_width), map_height(map_height), flg_gpu(true) {
+														  vec_dim(vec_dim), map_width(map_width), map_height(map_height), flg_gpu(true), flg_iniBatch(false) {
 	int device;
 	CHECK(SelectBestGPU(&device));
 
@@ -59,14 +59,14 @@ BLSOM::BLSOM(int vec_dim, int map_width, int map_height) :iAlfa(0.5), iBeta(40),
 }
 
 BLSOM::BLSOM(int vec_dim, int map_width, int map_height,int device):iAlfa(0.5), iBeta(40), t_alfa(30), t_beta(20), 
-																    vec_dim(vec_dim), map_width(map_width), map_height(map_height),flg_gpu(true) {
+																    vec_dim(vec_dim), map_width(map_width), map_height(map_height),flg_gpu(true), flg_iniBatch(false) {
 	if (flg_gpu) {
 		CHECK(cudaSetDevice(device));
 	}
 }
 
 BLSOM::BLSOM(int vec_dim, int map_width, int map_height, int device, int gpuFlag) : iAlfa(0.5), iBeta(40), t_alfa(30), t_beta(20), 
-																					vec_dim(vec_dim),map_width(map_width),map_height(map_height),flg_gpu(gpuFlag) {
+																					vec_dim(vec_dim),map_width(map_width),map_height(map_height),flg_gpu(gpuFlag), flg_iniBatch(false) {
 	
 	if (gpuFlag) {
 		CHECK(cudaSetDevice(device));
@@ -118,6 +118,7 @@ void BLSOM::Init(const float sdev1, const float sdev2, const float* rot1, const 
 	memcpy(thrust::raw_pointer_cast(this->h_sdev.data()), &sdev1, sizeof(float));
 	memcpy(thrust::raw_pointer_cast(this->h_sdev.data()+1), &sdev2, sizeof(float));
 
+	this->flg_iniBatch = true;
 }
 
 void BLSOM::SetTrainingData(const std::vector<std::vector<float>> train) {
@@ -208,8 +209,8 @@ void BLSOM::InitMapWeightRand() {
 	dim3 grid(this->map_width, this->map_height);
 	thrust::device_vector<curandState> devStates(this->map_width * this->map_height * this->vec_dim);
 
-	setup_kernel << < grid, block >> > (thrust::raw_pointer_cast(devStates.data()),this->map_width, this->vec_dim);
-	InitMapWeightRandFromGPU << <grid, block >> >(thrust::raw_pointer_cast(devStates.data()),
+	setup_kernel <<< grid, block >>> (thrust::raw_pointer_cast(devStates.data()),this->map_width, this->vec_dim);
+	InitMapWeightRandFromGPU <<< grid, block >>>(thrust::raw_pointer_cast(devStates.data()),
 		thrust::raw_pointer_cast(this->d_mapWeight.data()),
 		this->map_width,
 		this->vec_dim,
@@ -217,13 +218,12 @@ void BLSOM::InitMapWeightRand() {
 		255);
 }
 
-void BLSOM::InitMapWeight(int mode) {
-	dim3 block(1,1,this->vec_dim);
+void BLSOM::InitMapWeightBatch() {
+	dim3 block(1, 1, this->vec_dim);
 	dim3 grid(this->map_width, this->map_height);
 
-	switch (mode){
-	case INIT_BATCH:
-		InitMapWeightFromGPU <<<grid, block >>> (thrust::raw_pointer_cast(this->d_mapWeight.data()),
+	if (this->flg_iniBatch) {
+		InitMapWeightFromGPU << < grid, block >> > (thrust::raw_pointer_cast(this->d_mapWeight.data()),
 													thrust::raw_pointer_cast(this->d_aveVec.data()),
 													thrust::raw_pointer_cast(this->d_sdev.data()),
 													thrust::raw_pointer_cast(this->d_rot1.data()),
@@ -231,6 +231,18 @@ void BLSOM::InitMapWeight(int mode) {
 													this->map_width,
 													this->map_height,
 													this->vec_dim);
+	}
+	else {
+		std::cerr << "Please call BLSOM::Init, before call InitMapWeightBatch." << std::endl;
+	}
+}
+
+void BLSOM::InitMapWeight(int mode) {
+	
+
+	switch (mode){
+	case INIT_BATCH:
+		InitMapWeightBatch();
 		break;
 
 	case INIT_RANDOM:

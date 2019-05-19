@@ -37,6 +37,7 @@ private:
 	/*--- GPU用計算変数ここから ---*/
 	///BLSOMに利用
 	bool flg_gpu;								//GPUを使用するか否か
+	bool flg_iniBatch;
 	int   d_Acs;							//使用するGPU
 	thrust::device_vector<float> d_mapWeight;						//J×I行列のマップの領域確保に利用
 	thrust::device_vector<float> d_weightS;							//代表ベクトルWij
@@ -73,8 +74,9 @@ private:
 	void UpdateMapWeight(int Lnum);
 
 	/*--- GPU利用関数 ---*/
-	void  InitMapWeightRand();//ランダムに初期化を行う
-	void  searchBMUFromGPU(int epoc_num,int data_size);		//epoc_num * data_size + vec_dimで座標を決定
+	void InitMapWeightRand();//ランダムに初期化を行う
+	void InitMapWeightBatch();
+	void searchBMUFromGPU(int epoc_num,int data_size);		//epoc_num * data_size + vec_dimで座標を決定
 
 	void d_showWeightS();
 	void d_showMapWeight();

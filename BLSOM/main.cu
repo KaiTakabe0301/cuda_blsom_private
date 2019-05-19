@@ -42,8 +42,7 @@ int main(int argc, char** argv) {
 	int map_height;
 	float* som;
 	std::shared_ptr<float> map_weight;
-	std::vector<float> trains;
-	std::vector<std::vector<float>> Trains;
+	std::vector<std::vector<float>> train;
 	std::vector<std::vector<std::vector<float>>> epocs;
 
 
@@ -86,20 +85,10 @@ int main(int argc, char** argv) {
 
 
 	/* load init data */
-	trains = LoadTrain("C:\\Users\\Kai\\Desktop\\mori_PCA\\No1.epc", '\t');
-	Trains = LoadTrains("C:\\Users\\Kai\\Desktop\\mori_PCA\\No1.epc", '\t');
+	train = LoadTrains("C:\\Users\\Kai\\Desktop\\mori_PCA\\No1.epc", '\t');
 	ave_vec = LoadAverageVector("C:\\Users\\Kai\\Desktop\\mori_PCA\\vector_Ave.txt");
 	rotation = LoadRotation("C:\\Users\\Kai\\Desktop\\mori_PCA\\rotation.txt");
 	sdev = LoadStandardDev("C:\\Users\\Kai\\Desktop\\mori_PCA\\sdev.txt");
-	epocs.push_back(Trains);
-	
-	for each (std::vector<float> item in Trains)
-	{
-		for each(float el in item) {
-			std::cout << el << " ";
-		}
-		std::cout << "\n";
-	}
 	
 	map_width = MAP_WIDTH;
 	map_height = MAP_HEIGHT;
@@ -107,8 +96,7 @@ int main(int argc, char** argv) {
 
 	BLSOM test = BLSOM(vec_dim, map_width);
 	test.Init(sdev[0], sdev[1], rotation[0].data(), rotation[1].data(), ave_vec.data());
-	//test.SetTrainingData(trains.data(), trains.size() / ave_vec.size());
-	test.SetTrainingData(epocs);
+	test.SetTrainingData(train);
 	test.InitMapWeight(INIT_BATCH);
 
 	/* Get initial map */
