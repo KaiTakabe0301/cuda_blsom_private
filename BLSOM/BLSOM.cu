@@ -284,10 +284,6 @@ void BLSOM::setBMUPosition() {
 	this->h_bmuPos[0] = bmu_index % (this->map_width);	//xÀ•WŒvŽZ
 	this->h_bmuPos[1] = bmu_index / (this->map_width);	//yÀ•WŒvŽZ
 	this->d_bmuPos = this->h_bmuPos;
-
-	//std::cout << d_node[0] << std::endl;	
-	//std::cout << d_bmuPos[0] << std::endl;
-	//std::cout << d_bmuPos[1] << std::endl;
 }
 
 __global__ void CalcWeightSFromGPU(float* input_xk, int* bmuPos, float* weightS,float* cntWeightS,
@@ -384,19 +380,6 @@ __global__ void InitWeighSFromGPU(float* weightS) {
 	int idx = blockIdx.x*blockDim.x + threadIdx.x;
 	weightS[idx] = 0;
 }
-/*
-__global__ void InitWeighSFromGPU(float* weightS,float* cntWeightS,const int map_width, const int vec_dim) {
-	int ix = blockIdx.x*blockDim.x;
-	int iy = blockIdx.y*blockDim.y;
-	int cnt_idx = map_width*iy + ix;
-	int wei_idx = map_width*vec_dim*iy + vec_dim*ix;
-
-	for (int dim = 0; dim < vec_dim; dim++) {
-		weightS[wei_idx + dim] = 0;
-	}
-	cntWeightS[cnt_idx] = 0;
-}
-*/
 
 void BLSOM::Learning(int Lnum) {
 	std::cout << "Learning Start" << std::endl;
@@ -411,38 +394,16 @@ void BLSOM::Learning(int Lnum) {
 
 
 	for (int l = 0; l < Lnum; l++) {
-		//std::cout << "Learning : " << l << "/" << Lnum << "\r";
+		std::cout << "Learning : " << l << "/" << Lnum << "\r";
 
 		for (int i = 0; i < this->d_trains.size(); i++) {
-			//InitWeighSFromGPU <<< weightS_grid, 1 >>> (thrust::raw_pointer_cast(this->d_weightS.data()), thrust::raw_pointer_cast(this->d_cntWeightS.data()),this->map_width,this->vec_dim);
-			//d_showWeightS();
+			
 			InitCntWeightSFromGPU << <cntWeightS_grid, cntWeightS_block >> > (thrust::raw_pointer_cast(this->d_cntWeightS.data()));
 			InitWeighSFromGPU << <weightS_grid, weightS_block >> > (thrust::raw_pointer_cast(this->d_weightS.data()));
 
-			std::cout << this->d_mapWeight[3] << std::endl;
-			std::cout << this->d_mapWeight[4] << std::endl;
-			std::cout << this->d_mapWeight[5] << std::endl;
-			std::cout << "\n\n";
-
 			for (int j = 0; j < this->train_num; j++) {
-				//std::cout << i * (this->train_num) * (this->vec_dim) + j*(this->vec_dim) << std::endl;
-				/*std::cout << i * (this->train_num) * (this->vec_dim) + j*(this->vec_dim) <<  ", ";
-				std::cout << i * (this->train_num) * (this->vec_dim) + j*(this->vec_dim)+1 << ", ";
-				std::cout << i * (this->train_num) * (this->vec_dim) + j*(this->vec_dim)+2 << " : ";
-				
-
-				std::cout << this->d_trains[i * (this->train_num) * (this->vec_dim) + j*(this->vec_dim)] << " ";
-				std::cout << this->d_trains[i * (this->train_num) * (this->vec_dim) + j*(this->vec_dim)+1] << " ";
-				std::cout << this->d_trains[i * (this->train_num) * (this->vec_dim) + j*(this->vec_dim)+2] << " ";
-				std::cout << "\n\n";
-				*/
-
-				//this->BMU(thrust::raw_pointer_cast(&(this->d_trains[i * (this->train_num) * (this->vec_dim) + j*(this->vec_dim)]))); //“Y‚¦Žš‚ðC³
-				//this->CalcWeightS(thrust::raw_pointer_cast(&(this->d_trains[i * (this->train_num) * (this->vec_dim) + j*(this->vec_dim)])), l);
 				this->BMU(thrust::raw_pointer_cast(&(this->d_trains[i][j*(this->vec_dim)]))); //“Y‚¦Žš‚ðC³
 				this->CalcWeightS(thrust::raw_pointer_cast(&(this->d_trains[i][j*(this->vec_dim)])), l);
-
-				//d_showWeightS();
 			}
 			this->UpdateMapWeight(l);
 		}
