@@ -85,11 +85,19 @@ int main(int argc, char** argv) {
 
 
 	/* load init data */
-	train = LoadTrains("C:\\Users\\Kai\\Desktop\\mori_PCA\\No1.epc", '\t');
+	/*
+	train = LoadTrains("C:\\Users\\Kai\\Desktop\\mori_PCA\\No1.txt", '\t');
 	ave_vec = LoadAverageVector("C:\\Users\\Kai\\Desktop\\mori_PCA\\vector_Ave.txt");
 	rotation = LoadRotation("C:\\Users\\Kai\\Desktop\\mori_PCA\\rotation.txt");
 	sdev = LoadStandardDev("C:\\Users\\Kai\\Desktop\\mori_PCA\\sdev.txt");
-	
+	*/
+
+	train = LoadTrains("sample\\No1.txt", '\t');
+	ave_vec = LoadAverageVector("sample\\vector_Ave.txt");
+	rotation = LoadRotation("sample\\rotation.txt");
+	sdev = LoadStandardDev("sample\\sdev.txt");
+
+
 	map_width = MAP_WIDTH;
 	map_height = MAP_HEIGHT;
 	vec_dim = ave_vec.size();
