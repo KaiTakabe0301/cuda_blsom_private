@@ -87,6 +87,7 @@ void BLSOM::Init(const float sdev1, const float sdev2, const float* rot1, const 
 		
 		this->d_mapWeight = thrust::device_vector<float>(map_width*map_height*vec_dim);
 		this->d_weightS = thrust::device_vector<float>(map_width*map_height* (vec_dim));
+		this->d_umatrix = thrust::device_vector<float>(map_width*map_height);
 		this->d_cntWeightS = thrust::device_vector<float>(map_width*map_height);
 		this->d_node = thrust::device_vector<float>(map_width*map_height);
 		this->d_rot1 = thrust::device_vector<float>(vec_dim);
@@ -104,6 +105,7 @@ void BLSOM::Init(const float sdev1, const float sdev2, const float* rot1, const 
 
 	this->h_mapWeight = thrust::host_vector<float>(this->map_width*this->map_height*this->vec_dim);
 	this->h_weightS = thrust::host_vector<float>(this->map_width*this->map_height* (this->vec_dim));
+	this->h_umatrix = thrust::host_vector<float>(map_width*map_height);
 	this->h_cntWeightS = thrust::device_vector<float>(map_width*map_height);
 	this->h_node = thrust::host_vector<float>(this->map_width*this->map_height);
 	this->h_rot1 = thrust::host_vector<float>(this->vec_dim);
@@ -216,6 +218,7 @@ void BLSOM::InitMapWeightRand() {
 		this->vec_dim,
 		0,
 		255);
+
 }
 
 void BLSOM::InitMapWeightBatch() {
@@ -239,6 +242,7 @@ void BLSOM::InitMapWeightBatch() {
 
 void BLSOM::InitMapWeight(int mode) {
 	
+	InitUmatrix();
 
 	switch (mode){
 	case INIT_BATCH:
@@ -254,6 +258,21 @@ void BLSOM::InitMapWeight(int mode) {
 	}
 	
 }
+
+__global__ void InitUmatrixFromGPU(float* umatrix, const int map_width) {
+	int ix = blockIdx.x*blockDim.x;
+	int iy = blockIdx.y*blockDim.y;
+	int idx = map_width*iy + ix;
+	umatrix[idx] = 0;
+}
+
+void BLSOM::InitUmatrix() {
+
+	dim3 umatrix_grid(this->map_width,this->map_height);
+	InitUmatrixFromGPU << <umatrix_grid, 1 >> > (thrust::raw_pointer_cast(this->d_umatrix.data()), this->map_width);
+
+}
+
 
 __global__ void InitNodeFromGPU(float* node,const int map_width) {
 	int ix = blockIdx.x*blockDim.x;
@@ -381,6 +400,68 @@ __global__ void InitWeighSFromGPU(float* weightS) {
 	weightS[idx] = 0;
 }
 
+
+
+// Calc Umatrix(x1,y1)(x1+1,y1)
+__global__ void UmatrixLRFromGPU(float* mapWeight, float* umatrix, const int map_width, const int map_height, const int vec_dim) {
+	int idx = blockIdx.x*blockDim.x + threadIdx.x;
+	int idy = blockIdx.y*blockDim.y + threadIdx.y;
+
+	int map_idx_L = map_width*vec_dim*idy + vec_dim*idx;
+	int map_idx_R = map_width*vec_dim*idy + vec_dim*(idx+1);
+
+	int umat_idx = map_width*idy + idx;
+
+	if (idx < map_width) {
+		for (int dim = 0; dim < vec_dim; dim++)
+			umatrix[umat_idx] += sqrt(pow((mapWeight[map_idx_L + dim] - mapWeight[map_idx_R + dim]),2));
+	}
+}
+
+// Calc Umatrix(x1,y1)(x1,y1+1)
+__global__ void UmatrixUDFromGPU(float* mapWeight, float* umatrix, const int map_width, const int map_height, const int vec_dim) {
+	int idx = blockIdx.x*blockDim.x + threadIdx.x;
+	int idy = blockIdx.y*blockDim.y + threadIdx.y;
+
+	int map_idx_U = map_width*vec_dim*idy + vec_dim*idx;
+	int map_idx_D = map_width*vec_dim*(idy+1) + vec_dim*idx;
+	int umat_idx = map_width*idy + idx;
+
+	if (idy < map_height) {
+		for (int dim = 0; dim < vec_dim; dim++)
+			umatrix[umat_idx] += sqrt(pow((mapWeight[map_idx_U + dim] - mapWeight[map_idx_D + dim]),2));
+	}
+}
+
+// Calc Umatrix(x1,y1)(x1,y1)
+__global__ void Umatrix45FromGPU(float* mapWeight, float* umatrix, const int map_width, const int map_height, const int vec_dim) {
+	int idx = blockIdx.x*blockDim.x + threadIdx.x;
+	int idy = blockIdx.y*blockDim.y + threadIdx.y;
+
+	int map_idx1 = map_width*vec_dim*idy + vec_dim*idx;
+	int map_idx2 = map_width*vec_dim*(idy + 1) + vec_dim*(idx+1);
+	int map_idx3 = map_width*vec_dim*(idy + 1) + vec_dim*idx;
+	int map_idx4 = map_width*vec_dim*idy + vec_dim*(idx + 1);
+
+	int umat_idx = map_width*idy + idx;
+
+	if (idx <map_width && idy < map_height) {
+		for (int dim = 0; dim < vec_dim; dim++)
+			umatrix[umat_idx] += 0.5*(sqrt(pow((mapWeight[map_idx1 + dim] - mapWeight[map_idx2 + dim]),2)) + sqrt(pow((mapWeight[map_idx3 + dim] - mapWeight[map_idx4 + dim]),2)) );
+	}
+}
+
+
+
+void BLSOM::Umatrix() {
+	dim3 grid(this->map_width, this->map_height);
+
+	UmatrixLRFromGPU <<<grid, 1 >>> (thrust::raw_pointer_cast(this->d_mapWeight.data()), thrust::raw_pointer_cast(this->d_umatrix.data()), this->map_width, this->map_height, this->vec_dim);
+	UmatrixUDFromGPU <<<grid, 1 >>>(thrust::raw_pointer_cast(this->d_mapWeight.data()), thrust::raw_pointer_cast(this->d_umatrix.data()), this->map_width, this->map_height, this->vec_dim);
+	Umatrix45FromGPU <<<grid, 1 >>>(thrust::raw_pointer_cast(this->d_mapWeight.data()), thrust::raw_pointer_cast(this->d_umatrix.data()), this->map_width, this->map_height, this->vec_dim);
+
+}
+
 void BLSOM::Learning(int Lnum) {
 	std::cout << "Learning Start" << std::endl;
 	
@@ -408,14 +489,35 @@ void BLSOM::Learning(int Lnum) {
 			this->UpdateMapWeight(l);
 		}
 	}
-
 	std::cout << "Learning Finish" << std::endl;
+
+	std::cout << "Umatrix Start" << std::endl;
+	this->Umatrix();
+	std::cout << "Umatrix Finish" << std::endl;
+
+
 }
 
 float* BLSOM::GetSOMMap() {
 	this->h_mapWeight = this->d_mapWeight;
 	return thrust::raw_pointer_cast(this->h_mapWeight.data());
 }
+
+std::vector<std::vector<float>> BLSOM::GetUMatrix() {
+	this->h_umatrix = this->d_umatrix;
+	std::vector<float> vec;
+	std::vector<std::vector<float>> umatrix;
+	
+	for (int h = 0; h < this->map_height; h++) {
+		vec.clear();
+		for (int w = 0; w < this->map_width; w++) {
+			vec.push_back(this->h_umatrix[this->map_width*h + w]);
+		}
+		umatrix.push_back(vec);
+	}
+	return umatrix;
+}
+
 
 void BLSOM::d_showWeightS() {
 	for (int h = 0; h < this->map_height; h++) {

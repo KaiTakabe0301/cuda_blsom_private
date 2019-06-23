@@ -35,54 +35,44 @@ int WriteSOMMAP(std::string fileName, float* map, int map_vec, int map_width, in
 	return EXIT_SUCCESS;
 }
 
+int WriteUmatrix(std::string fileName, std::vector<std::vector<float>> umatrix) {
+	std::ofstream ofs;
+	ofs.open(fileName, 'w');
+
+	if (!ofs) {
+		std::cerr << "can't opne file" << std::endl;
+		return EXIT_FAILURE;
+	}
+
+	for (int h = 0; h < umatrix.size()-1; h++) {
+		for (int w = 0; w < umatrix[0].size()-1; w++) {
+			ofs << umatrix[h][w];
+			if (w != umatrix[0].size() - 2)
+				ofs << "\t";
+		}
+		if (h != umatrix.size() - 2)
+			ofs << "\n";
+	}
+	ofs.close();
+
+	return EXIT_SUCCESS;
+}
+
 int main(int argc, char** argv) {
 	int device;
 	int vec_dim;
 	int map_width;
 	int map_height;
 	float* som;
+	std::vector<std::vector<float>> umatrix;
+
 	std::shared_ptr<float> map_weight;
 	std::vector<std::vector<float>> train;
 	std::vector<std::vector<std::vector<float>>> epocs;
 
-
 	std::vector<float> ave_vec;
 	std::vector<std::vector<float>> rotation;
 	std::vector<float> sdev;
-
-	std::vector<std::vector<int>> container;
-	std::vector<int> data;
-
-	std::vector<thrust::device_vector<float>> d_con;
-	thrust::device_vector<float> d_data;
-
-	for (int i = 1; i <= 9; i++) {
-		data.push_back(i);
-		d_data.push_back(i);
-		if (i % 3 == 0) {
-			container.push_back(data);
-			data.clear();
-
-			d_con.push_back(d_data);
-			d_data.clear();
-		}
-	}
-
-	for (int i = 0; i <3; i++) {
-		for (int j = 0; j < 3; j++) {
-			std::cout << &(container[i][j]) << " ";
-		}
-		std::cout << "\n";
-	}
-	std::cout << "\n";
-
-	for (int i = 0; i <3; i++) {
-		for (int j = 0; j < 3; j++) {
-			std::cout << d_con[i][j] << " ";
-		}
-		std::cout << "\n";
-	}
-
 
 	/* load init data */
 	/*
@@ -111,12 +101,21 @@ int main(int argc, char** argv) {
 	som = test.GetSOMMap();
 	WriteSOMMAP("C:\\Users\\Kai\\Desktop\\mori_PCA\\init_batch_map.txt", som, vec_dim, map_width, test.MapHeight());
 
+	/* Get initial umatrix */
+	umatrix = test.GetUMatrix();
+	WriteUmatrix("C:\\Users\\Kai\\Desktop\\mori_PCA\\init_umatrix_20190623.txt", umatrix);
+
+
 	/* Learning */
 	test.Learning(50);
 	
 	/* Get Learned Map */
 	som = test.GetSOMMap();
-	WriteSOMMAP("C:\\Users\\Kai\\Desktop\\mori_PCA\\result_random_20190406.txt", som, vec_dim, map_width, test.MapHeight());
+	WriteSOMMAP("C:\\Users\\Kai\\Desktop\\mori_PCA\\result_batch_20190623.txt", som, vec_dim, map_width, test.MapHeight());
 	
+	/* Get Umatrix */
+	umatrix = test.GetUMatrix();
+	WriteUmatrix("C:\\Users\\Kai\\Desktop\\mori_PCA\\umatrix_random_20190623_1.txt", umatrix);
+
 	return 0;
 }

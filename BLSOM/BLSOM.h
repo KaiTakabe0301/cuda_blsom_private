@@ -41,10 +41,10 @@ private:
 	int   d_Acs;							//使用するGPU
 	thrust::device_vector<float> d_mapWeight;						//J×I行列のマップの領域確保に利用
 	thrust::device_vector<float> d_weightS;							//代表ベクトルWij
+	thrust::device_vector<float> d_umatrix;							//umatrixの計算結果を格納
 	thrust::device_vector<float> d_cntWeightS;						//代表ベクトルの分類数
 	thrust::device_vector<float> d_node;							//node
 	thrust::device_vector<int> d_bmuPos;							//d_bmuPos[0]=x,d_bmuPos[1]=y
-	//thrust::device_vector<float> d_train;							//学習データ
 	std::vector<thrust::device_vector<float>> d_trains;						//trains[エポック数][入力データ数](データの次元数)
 	thrust::device_vector<float> d_sdev;							//標準偏差σ1(d_sdev[0]),σ2(d_sdev[1])
 	thrust::device_vector<float> d_rot1, d_rot2;					//第一/第二rotation
@@ -54,11 +54,11 @@ private:
 
 	/*--- CPU用計算変数ここから ---*/
 	thrust::host_vector<float> h_mapWeight;						//J×I行列のマップの領域確保に利用
-	thrust::host_vector<float> h_weightS;						//代表ベクトルWij 
+	thrust::host_vector<float> h_weightS;						//代表ベクトルWij
+	thrust::host_vector<float> h_umatrix;
 	thrust::device_vector<float> h_cntWeightS;					//代表ベクトルの分類数
 	thrust::host_vector<float> h_node;							//node
 	thrust::host_vector<int> h_bmuPos;							//d_bmuPos[0]=x,d_bmuPos[1]=y
-	//thrust::host_vector<float> h_train;							//学習データ
 	thrust::host_vector<float> h_trains;						//trains[エポック数][入力データ数](データの次元数)
 	thrust::host_vector<float> h_sdev;							//標準偏差σ1(d_sdev[0]),σ2(d_sdev[1])
 	thrust::host_vector<float> h_rot1, h_rot2;					//第一/第二rotation
@@ -76,8 +76,11 @@ private:
 	/*--- GPU利用関数 ---*/
 	void InitMapWeightRand();//ランダムに初期化を行う
 	void InitMapWeightBatch();
+	void InitUmatrix();
 	void searchBMUFromGPU(int epoc_num,int data_size);		//epoc_num * data_size + vec_dimで座標を決定
+	void Umatrix();
 
+	/*--- debug funciton ---*/
 	void d_showWeightS();
 	void d_showMapWeight();
 	void d_showCntS();
@@ -128,8 +131,8 @@ public:
 	void SetVecDim(int vecDim) {
 		this->vec_dim = vecDim;
 	}
-	std::vector<std::vector<std::vector<double> > > GetMapWeight();
-	std::vector<std::vector<double> >GetUMatrix();
+	std::vector<std::vector<std::vector<float> > > GetMapWeight();
+	std::vector<std::vector<float>> GetUMatrix();
 
 
 	void check_mapWeight();
