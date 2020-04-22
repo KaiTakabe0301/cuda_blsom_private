@@ -74,18 +74,10 @@ int main(int argc, char** argv) {
 	std::vector<std::vector<float>> rotation;
 	std::vector<float> sdev;
 
-	/* load init data */
-	/*
-	train = LoadTrains("C:\\Users\\Kai\\Desktop\\mori_PCA\\No1.txt", '\t');
-	ave_vec = LoadAverageVector("C:\\Users\\Kai\\Desktop\\mori_PCA\\vector_Ave.txt");
-	rotation = LoadRotation("C:\\Users\\Kai\\Desktop\\mori_PCA\\rotation.txt");
-	sdev = LoadStandardDev("C:\\Users\\Kai\\Desktop\\mori_PCA\\sdev.txt");
-	*/
-
-	train = LoadTrains("sample\\No1.txt", '\t');
-	ave_vec = LoadAverageVector("sample\\vector_Ave.txt");
-	rotation = LoadRotation("sample\\rotation.txt");
-	sdev = LoadStandardDev("sample\\sdev.txt");
+	train = LoadTrains("your train data", 'split');
+	ave_vec = LoadAverageVector("average vecter");
+	rotation = LoadRotation("rotation");
+	sdev = LoadStandardDev("standard dev");
 
 
 	map_width = MAP_WIDTH;
@@ -99,23 +91,23 @@ int main(int argc, char** argv) {
 
 	/* Get initial map */
 	som = test.GetSOMMap();
-	WriteSOMMAP("C:\\Users\\Kai\\Desktop\\mori_PCA\\init_batch_map.txt", som, vec_dim, map_width, test.MapHeight());
+	WriteSOMMAP("init_batch_map.txt", som, vec_dim, map_width, test.MapHeight());
 
 	/* Get initial umatrix */
 	umatrix = test.GetUMatrix();
-	WriteUmatrix("C:\\Users\\Kai\\Desktop\\mori_PCA\\init_umatrix_20190623.txt", umatrix);
+	WriteUmatrix("init_umatrix.txt", umatrix);
 
 
 	/* Learning */
 	test.Learning(50);
-	
+
 	/* Get Learned Map */
 	som = test.GetSOMMap();
-	WriteSOMMAP("C:\\Users\\Kai\\Desktop\\mori_PCA\\result_batch_20190623.txt", som, vec_dim, map_width, test.MapHeight());
-	
+	WriteSOMMAP("result_batch.txt", som, vec_dim, map_width, test.MapHeight());
+
 	/* Get Umatrix */
 	umatrix = test.GetUMatrix();
-	WriteUmatrix("C:\\Users\\Kai\\Desktop\\mori_PCA\\umatrix_random_20190623_1.txt", umatrix);
+	WriteUmatrix("learned_umatrix.txt", umatrix);
 
 	return 0;
 }
